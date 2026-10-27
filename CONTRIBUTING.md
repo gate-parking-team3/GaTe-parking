@@ -24,7 +24,7 @@ Everything a team member needs to work on GaŤe Parking: setup, daily workflow, 
 Get the project and start it:
 
 ```
-git clone https://github.com/MatejKustka/GaTe-parking.git
+git clone https://github.com/gate-parking-team3/GaTe-parking.git
 cd GaTe-parking
 npm install
 cp .env.example .env
