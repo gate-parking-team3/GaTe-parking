@@ -17,7 +17,7 @@
 - [ ] Title follows Conventional Commits
 - [ ] One task only, under ~400 changed lines
 - [ ] `npm run check` passes locally
-- [ ] Branch is up to date with `main` (`/sync`)
+- [ ] No conflicts with `main` (`/sync` if there are)
 - [ ] Works locally
 - [ ] Tests added or updated
 - [ ] Docs updated (API, README, `docs/`) if needed
