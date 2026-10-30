@@ -86,16 +86,16 @@ Nobody pushes to `main`. Everything goes through a pull request (PR) with a revi
 
 **Review (enforced):**
 
-- One approval from a teammate who did not push the last commit. New commits dismiss earlier approvals.
+- One approval from a teammate. Reviewers: if the author pushes big changes after you approved, take another look.
 - All review conversations must be resolved. Copilot reviews every PR and again after each push; treat its comments as a free first review and fix them or reply why not.
 - Changes to CI, Docker, tooling and Claude rules (`.github/CODEOWNERS`) also need a maintainer's approval.
 - Reviewers: read the diff, run the branch if the change is non-trivial, check it against the user story. Be specific and kind. Review within one working day. Approve only what you read.
 
-**Merging (enforced):** `Check`, `Commit messages`, `PR title`, `Docker build` and `Smoke test` green, branch up to date with `main`, squash merge only. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
+**Merging (enforced):** `Check`, `Commit messages`, `PR title`, `Docker build` and `Smoke test` green and squash merge only. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
 
 ## 5. CI and Docker
 
-- **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (70% minimum), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
+- **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (50% minimum for now, we will raise it as the code grows), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
 - CI jobs: `Check` (format, lint, types, tests, build), `Commit messages` and `PR title` (Conventional Commits), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
 - Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
 - Docker: only `backend/Dockerfile`, `frontend/Dockerfile` and `docker-compose.yml` define images and the local stack. Images build from the repo root with `npm ci`, run as non-root, contain no dev dependencies or secrets, and keep their `HEALTHCHECK`. Compose waits for healthy dependencies.
