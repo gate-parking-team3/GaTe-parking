@@ -73,6 +73,32 @@ feat(reservations): add time window validation
 
 CI checks every commit in your PR. `/save` writes a valid message for you. To fix a bad one, ask Claude; do not rewrite history yourself.
 
+## 3b. Without Claude Code (plain git)
+
+Any AI agent or editor works too. Codex and other agents read `AGENTS.md`; the Claude commands above are just shortcuts for these plain steps:
+
+```
+# start a task (from the latest main)
+git switch main && git pull --ff-only
+git switch -c feat/short-name
+
+# save your work (one-line Conventional Commit, see section 3)
+git add <the files you changed>
+git commit -m "feat(vehicles): add plate validation"
+
+# bring in your teammates' changes (daily, and before pushing)
+git fetch origin
+git merge origin/main
+
+# publish and open the pull request
+git push -u origin feat/short-name
+gh pr create --title "feat(vehicles): add plate validation"
+```
+
+- Add only the files that belong to your task, never `.env`. Do not use `git add .` blindly.
+- If a commit message was wrong and CI complains, ask a teammate or an AI agent to help fix the message; do not force-push on your own.
+- Not using `gh`? Open the PR on the repo page after the push; GitHub shows a "Compare & pull request" button.
+
 ## 4. Pull requests
 
 Nobody pushes to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces most of this through the ruleset in `.github/rulesets/main-protection.json`.
