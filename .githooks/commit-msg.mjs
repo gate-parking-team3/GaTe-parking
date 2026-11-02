@@ -24,8 +24,8 @@ if (status === 0) process.exit(0);
 console.error(
   [
     "",
-    "The commit was NOT made. Your changes are safe and still staged.",
-    "The message must be one line in the team format:",
+    "Warning: this commit message does not follow the team format.",
+    "The commit was made anyway, so nothing is lost. Next time, use one line:",
     "",
     "  <type>(<optional scope>): <lower-case description>",
     "",
@@ -35,7 +35,8 @@ console.error(
     "",
     "Types: feat, fix, docs, test, chore, refactor, style, ci.",
     "Start with a lower-case word, no full stop, 72 characters max.",
-    'Try again, e.g.: git commit -m "fix(auth): reject expired tokens"',
+    "Your PR title must follow this format too: it becomes the commit on main.",
   ].join("\n"),
 );
-process.exit(1);
+// Warn only: branch commits are squashed away, the PR title is what reaches main.
+process.exit(0);
