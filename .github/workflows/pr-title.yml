@@ -1,14 +1,26 @@
 name: PR title
 
-# Squash merges use the PR title as the commit on main, so it must be a Conventional Commit.
+# Squash merges use the PR title as the commit on main, so it should be a Conventional Commit.
+# A wrong title only warns (the job stays green) and gets a help comment; reviewers make sure it is fixed before merging.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   title:
     name: PR title
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      # Pull requests from forks get a read-only token and cannot comment.
+      CAN_COMMENT: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      MARKER: "<!-- pr-title-help -->"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -17,6 +29,47 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Lint the PR title
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$PR_TITLE" | npx commitlint --verbose
+        id: lint
+        run: |
+          if printf '%s\n' "$PR_TITLE" | npx commitlint --verbose; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=PR title does not follow the team format::Example: feat(vehicles): add plate validation. Click Edit next to the PR title to fix it before merging."
+            echo '⚠️ The PR title does not follow the team format. Fix it before merging, e.g. `feat(vehicles): add plate validation`.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Help comment for people who do not read CI logs: posted once when the title is wrong, removed when it is fixed.
+      - name: Find the help comment
+        id: help
+        if: env.CAN_COMMENT == 'true'
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: Explain how to fix the title
+        if: steps.lint.outputs.valid == 'false' && steps.help.outputs.id == '' && env.CAN_COMMENT == 'true'
+        run: |
+          cat > help.md <<'EOF'
+          ### ⚠️ The PR title does not follow the team format
+
+          The title becomes the commit on `main` (we squash merge), so it must be one line like this:
+
+          ```
+          <type>(<optional scope>): <lower-case description>
+          ```
+
+          Examples: `feat(vehicles): add plate validation`, `fix(auth): reject expired tokens`, `docs: update the setup guide`
+
+          - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`
+          - Start the description with a lower-case word, no full stop, 72 characters max
+
+          **How to fix:** click **Edit** next to the PR title at the top of this page, change the title and click **Save**. The check runs again by itself. You do not need to change your commits or push anything.
+
+          This is a warning, not an error, but please fix it before merging. This comment disappears once the title is right.
+          EOF
+          { printf '%s\n' "$MARKER"; cat help.md; } > body.md
+          gh pr comment "$PR_NUMBER" --body-file body.md
+      - name: Remove the help comment
+        if: steps.lint.outputs.valid == 'true' && steps.help.outputs.id != ''
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/comments/${{ steps.help.outputs.id }}"

@@ -23,7 +23,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
-    "commitlint": "commitlint --from origin/main --to HEAD"
+    "commitlint": "commitlint --from origin/main --to HEAD",
+    "prepare": "node -e \"try { require('node:child_process').execSync('git config core.hooksPath .githooks', { stdio: 'ignore' }) } catch {}\""
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",

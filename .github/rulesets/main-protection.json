@@ -48,9 +48,6 @@
             "context": "Smoke test"
           },
           {
-            "context": "Commit messages"
-          },
-          {
             "context": "PR title"
           }
         ]
