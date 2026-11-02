@@ -5,10 +5,21 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   title:
     name: PR title
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      # Pull requests from forks get a read-only token and cannot comment.
+      CAN_COMMENT: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      MARKER: "<!-- pr-title-help -->"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -17,6 +28,40 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Lint the PR title
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+        id: lint
         run: printf '%s\n' "$PR_TITLE" | npx commitlint --verbose
+
+      # Help comment for people who do not read CI logs: posted once when the title is wrong, removed when it is fixed.
+      - name: Find the help comment
+        id: help
+        if: always() && env.CAN_COMMENT == 'true'
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: Explain how to fix the title
+        if: failure() && steps.lint.outcome == 'failure' && steps.help.outputs.id == '' && env.CAN_COMMENT == 'true'
+        run: |
+          cat > help.md <<'EOF'
+          ### The PR title needs to follow the team format
+
+          The title becomes the commit on `main` (we squash merge), so it must be one line like this:
+
+          ```
+          <type>(<optional scope>): <lower-case description>
+          ```
+
+          Examples: `feat(vehicles): add plate validation`, `fix(auth): reject expired tokens`, `docs: update the setup guide`
+
+          - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`
+          - Start the description with a lower-case word, no full stop, 72 characters max
+
+          **How to fix:** click **Edit** next to the PR title at the top of this page, change the title and click **Save**. The check runs again by itself. You do not need to change your commits or push anything.
+
+          This comment disappears once the title is right.
+          EOF
+          { printf '%s\n' "$MARKER"; cat help.md; } > body.md
+          gh pr comment "$PR_NUMBER" --body-file body.md
+      - name: Remove the help comment
+        if: success() && steps.help.outputs.id != ''
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/comments/${{ steps.help.outputs.id }}"

@@ -2,6 +2,24 @@
 
 Everything a team member needs to work on GaŤe Parking: setup, daily workflow, rules for commits and pull requests, CI, and releases. Read it once, top to bottom, before your first change.
 
+## Cheat sheet
+
+```
+git switch main && git pull --ff-only     # get the latest main
+git switch -c feat/short-name             # new branch for your task
+npm run check                             # must pass before you commit
+git add <your files>                      # never .env, never `git add .` blindly
+git commit -m "feat(vehicles): add plate validation"
+git fetch origin && git merge origin/main # bring in teammates' work
+git push -u origin feat/short-name        # then open the PR on GitHub
+```
+
+- **PR title** = one line, `<type>(<optional scope>): <lower-case description>`. Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`.
+- Good: `fix(auth): reject expired tokens`. Bad: `Fixed stuff`, `WIP`, `Update README.md.`
+- Wrong PR title? Click **Edit** next to it on GitHub. No git needed.
+- `npm install` turns on git hooks that format your files and check your commit message when you commit. If a commit is refused, your changes are safe; read the message, fix it and commit again.
+- Use VS Code and install the recommended extensions it suggests: files are formatted every time you save.
+
 ## 1. Setup (once)
 
 | Tool                                                              | Why                             | Check                   |
@@ -33,6 +51,8 @@ npm run dev
 ```
 
 Frontend: http://localhost:3000. Backend health: http://localhost:8080/api/health. Then open Claude Code in the folder with `claude`; it reads `CLAUDE.md` and knows the team rules.
+
+`npm install` also switches on the team's git hooks (in `.githooks/`): every commit is auto-formatted with Prettier and its message is checked. In VS Code, accept the recommended extensions (Prettier, ESLint, EditorConfig) so files are formatted on save.
 
 ## 2. Daily workflow
 
@@ -71,7 +91,7 @@ feat(reservations): add time window validation
 - The `Co-Authored-By: ...` line Claude adds at the end is allowed.
 - Dependabot's `chore(deps): ...` commits are exempt.
 
-CI checks every commit in your PR. `/save` writes a valid message for you. To fix a bad one, ask Claude; do not rewrite history yourself.
+The `commit-msg` hook checks the message on your computer when you commit: if it is wrong, the commit is not made and you are shown how to fix it. `/save` writes a valid message for you. CI checks only the PR title, because squash merging turns it into the single commit on `main`; branch commit messages never reach `main`.
 
 ## 3b. Without Claude Code (plain git)
 
@@ -96,7 +116,7 @@ gh pr create --title "feat(vehicles): add plate validation"
 ```
 
 - Add only the files that belong to your task, never `.env`. Do not use `git add .` blindly.
-- If a commit message was wrong and CI complains, ask a teammate or an AI agent to help fix the message; do not force-push on your own.
+- If the PR title check fails, a comment on the PR explains it: edit the title on GitHub, nothing else. Never force-push.
 - Not using `gh`? Open the PR on the repo page after the push; GitHub shows a "Compare & pull request" button.
 
 ## 4. Pull requests
@@ -117,12 +137,12 @@ Nobody pushes to `main`. Everything goes through a pull request (PR) with a revi
 - Changes to CI, Docker, tooling and Claude rules (`.github/CODEOWNERS`) also need a maintainer's approval.
 - Reviewers: read the diff, run the branch if the change is non-trivial, check it against the user story. Be specific and kind. Review within one working day. Approve only what you read.
 
-**Merging (enforced):** `Check`, `Commit messages`, `PR title`, `Docker build` and `Smoke test` green and squash merge only. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
+**Merging (enforced):** `Check`, `PR title`, `Docker build` and `Smoke test` green and squash merge only. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
 
 ## 5. CI and Docker
 
 - **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (50% minimum for now, we will raise it as the code grows), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
-- CI jobs: `Check` (format, lint, types, tests, build), `Commit messages` and `PR title` (Conventional Commits), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
+- CI jobs: `Check` (format, lint, types, tests, build), `PR title` (Conventional Commit; comments on the PR with help when it fails), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
 - Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
 - Docker: only `backend/Dockerfile`, `frontend/Dockerfile` and `docker-compose.yml` define images and the local stack. Images build from the repo root with `npm ci`, run as non-root, contain no dev dependencies or secrets, and keep their `HEALTHCHECK`. Compose waits for healthy dependencies.
 - `GET /api/health` returns 200 `{status:"ok",db:"up"}`, or 503 when MongoDB is down. Keep it working.

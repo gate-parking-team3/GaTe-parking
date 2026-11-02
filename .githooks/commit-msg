@@ -1,0 +1,4 @@
+#!/bin/sh
+# Checks that the commit message follows the team format before the commit is made.
+# Installed automatically by `npm install` (see the "prepare" script in package.json).
+exec node .githooks/commit-msg.mjs "$1"

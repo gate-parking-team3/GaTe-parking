@@ -12,7 +12,7 @@ For Codex and any other AI agent working in this repo (Claude Code reads `CLAUDE
 6. **Never commit secrets** (`.env`, keys, tokens). New variables go in `.env.example`.
 7. **Changes reach `main` only through a pull request** reviewed by a teammate. Never approve a PR for the user and never merge one that is unreviewed, red or has unresolved conversations. One topic per PR, under about 400 changed lines.
 
-## Commit and PR title format (CI rejects anything else)
+## Commit and PR title format (the commit hook and CI reject anything else)
 
 Conventional Commits, **a single line, no body**:
 
@@ -24,7 +24,7 @@ feat(vehicles): add plate validation
 - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`.
 - The description starts with a lower-case word, is imperative, has no full stop, and the whole line is at most 72 characters.
 - Names and acronyms later in the line are fine (`add JWT login`).
-- The PR title follows the same format, because squash merging uses it as the commit on `main`.
+- The PR title follows the same format, because squash merging uses it as the commit on `main`. CI checks the PR title; the `.githooks/commit-msg` hook checks each commit locally.
 - Commit only when the user asks.
 
 ## Equivalent of the Claude slash commands
