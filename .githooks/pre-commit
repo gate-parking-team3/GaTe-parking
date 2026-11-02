@@ -1,0 +1,4 @@
+#!/bin/sh
+# Formats the files you are about to commit with Prettier, so the format check in CI passes.
+# Installed automatically by `npm install` (see the "prepare" script in package.json).
+exec node .githooks/pre-commit.mjs
