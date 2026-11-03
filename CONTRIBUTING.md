@@ -127,7 +127,7 @@ Nobody pushes to `main`. Everything goes through a pull request (PR) with a revi
 
 - Title is a Conventional Commit, e.g. `feat(reservations): add time window validation`. Squash merging makes the title the commit on `main`.
 - Fill in the template: what, why (link the user story or PBS task, e.g. `US 5`), how to test, checklist.
-- One topic only, under about 400 changed lines. Bigger? Split it. No drive-by refactors or reformatting of other people's files.
+- One topic only, under about 1000 changed lines of code. Tests, docs and `package-lock.json` do not count. Bigger? Split it. No drive-by refactors or reformatting of other people's files.
 - Open as a draft while unfinished; mark it ready when CI is green and you reviewed your own diff. Add a screenshot for UI changes.
 
 **Review (enforced):**
