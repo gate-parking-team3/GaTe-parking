@@ -1,0 +1,22 @@
+# Render Blueprint for the backend (see docs/deployment.md).
+# Secrets are never stored here: MONGODB_URI is entered in the Render dashboard.
+services:
+  - type: web
+    name: gate-parking-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerContext: .
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: BACKEND_PORT
+        value: "8080"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
