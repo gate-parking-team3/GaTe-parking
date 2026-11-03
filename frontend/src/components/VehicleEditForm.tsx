@@ -3,6 +3,7 @@ import { vehicleApi } from "../api/vehicleApi";
 import {
   isValidLicensePlate,
   LICENSE_PLATE_MAX_LENGTH,
+  LICENSE_PLATE_MIN_LENGTH,
   type EngineType,
   type Vehicle,
   type VehicleInput,
@@ -41,7 +42,7 @@ export default function VehicleEditForm({
     event.preventDefault();
     if (!isValidLicensePlate(values.licensePlate)) {
       setError(
-        `License plate must be 1–${LICENSE_PLATE_MAX_LENGTH} letters or digits, with no spaces or special characters.`,
+        `License plate must be ${LICENSE_PLATE_MIN_LENGTH}–${LICENSE_PLATE_MAX_LENGTH} letters or digits (spaces and hyphens are ignored).`,
       );
       return;
     }
@@ -67,7 +68,7 @@ export default function VehicleEditForm({
         <input
           value={values.licensePlate}
           onChange={(event) => setField("licensePlate", event.target.value)}
-          maxLength={LICENSE_PLATE_MAX_LENGTH}
+          maxLength={LICENSE_PLATE_MAX_LENGTH * 2}
           required
         />
       </label>
@@ -99,7 +100,7 @@ export default function VehicleEditForm({
           }
         >
           <option value="combustion">Combustion</option>
-          <option value="plug-in">Plug-in</option>
+          <option value="electric">Electric</option>
         </select>
       </label>
 

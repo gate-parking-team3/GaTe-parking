@@ -14,12 +14,20 @@ const owner = "U001";
 function memoryVehicles(): VehicleRepository {
   const records = new Map<string, VehicleRecord>();
   let nextId = 1;
+  // Stands in for the unique index on the licensePlate field.
+  const isTaken = (plate: string, exceptId?: string) =>
+    [...records.values()].some(
+      (vehicle) => vehicle.id !== exceptId && vehicle.licensePlate === plate,
+    );
 
   return {
-    async listLicensePlates() {
-      return [...records.values()].map((vehicle) => vehicle.licensePlate);
+    async listByOwner(userId) {
+      return [...records.values()].filter(
+        (vehicle) => vehicle.userId === userId,
+      );
     },
     async create(input) {
+      if (isTaken(input.licensePlate)) throw new DuplicateLicensePlateError();
       const id = nextId.toString(16).padStart(24, "0");
       nextId += 1;
       const record = { id, ...input };
@@ -32,6 +40,9 @@ function memoryVehicles(): VehicleRepository {
     async update(id, patch) {
       const current = records.get(id);
       if (!current) return null;
+      if (patch.licensePlate && isTaken(patch.licensePlate, id)) {
+        throw new DuplicateLicensePlateError();
+      }
       const updated = { ...current, ...patch };
       records.set(id, updated);
       return updated;
@@ -66,8 +77,8 @@ const createBody = {
   licensePlate: "1ab-2345",
   brand: " Skoda ",
   model: "Octavia",
-  engineType: "combustion",
-  size: "standard",
+  engineType: "combustion" as const,
+  size: "standard" as const,
   userId: "NOT-THE-OWNER",
 };
 
@@ -88,7 +99,9 @@ describe("vehicle routes", () => {
       userId: owner,
     });
     expect(res.body.id).toMatch(/^[0-9a-f]{24}$/);
-    expect(await vehicles.listLicensePlates()).toEqual(["1AB2345"]);
+    expect(
+      (await vehicles.listByOwner(owner)).map((v) => v.licensePlate),
+    ).toEqual(["1AB2345"]);
   });
 
   it("rejects an invalid license plate", async () => {
@@ -264,13 +277,85 @@ describe("vehicle routes", () => {
 
   it("returns 500 when storage fails", async () => {
     const vehicles = memoryVehicles();
-    vehicles.listLicensePlates = () => Promise.reject(new Error("db down"));
+    vehicles.create = () => Promise.reject(new Error("db down"));
 
     const res = await request(appFor(vehicles, owner))
       .post("/api/vehicles")
       .send(createBody);
 
+    // The app's jsonErrors handler shapes and logs this; here Express' default handler answers.
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe("Failed to save the vehicle");
+  });
+
+  it("lists only the signed-in user's vehicles", async () => {
+    const vehicles = memoryVehicles();
+    await vehicles.create({
+      ...createBody,
+      licensePlate: "1AB2345",
+      userId: owner,
+    });
+    await vehicles.create({
+      ...createBody,
+      licensePlate: "2CD3456",
+      userId: "U002",
+    });
+
+    const res = await request(appFor(vehicles, owner)).get("/api/vehicles");
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((v: VehicleRecord) => v.licensePlate)).toEqual([
+      "1AB2345",
+    ]);
+  });
+
+  it("returns one vehicle to its owner only", async () => {
+    const vehicles = memoryVehicles();
+    const mine = await vehicles.create({
+      ...createBody,
+      licensePlate: "1AB2345",
+      userId: owner,
+    });
+    const theirs = await vehicles.create({
+      ...createBody,
+      licensePlate: "2CD3456",
+      userId: "U002",
+    });
+    const app = appFor(vehicles, owner);
+
+    expect((await request(app).get(`/api/vehicles/${mine.id}`)).status).toBe(
+      200,
+    );
+    expect((await request(app).get(`/api/vehicles/${theirs.id}`)).status).toBe(
+      403,
+    );
+    expect((await request(app).get("/api/vehicles/nope")).status).toBe(400);
+    expect(
+      (await request(app).get(`/api/vehicles/${"f".repeat(24)}`)).status,
+    ).toBe(404);
+  });
+
+  it("replaces a vehicle with PUT and requires every field", async () => {
+    const vehicles = memoryVehicles();
+    const mine = await vehicles.create({
+      ...createBody,
+      licensePlate: "1AB2345",
+      userId: owner,
+    });
+    const app = appFor(vehicles, owner);
+
+    const ok = await request(app)
+      .put(`/api/vehicles/${mine.id}`)
+      .send({ ...createBody, model: "Enyaq", engineType: "electric" });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({
+      model: "Enyaq",
+      engineType: "electric",
+      userId: owner,
+    });
+
+    const partial = await request(app)
+      .put(`/api/vehicles/${mine.id}`)
+      .send({ model: "Fabia" });
+    expect(partial.status).toBe(400);
   });
 });

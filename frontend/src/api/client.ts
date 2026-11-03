@@ -8,6 +8,33 @@ export class ApiError extends Error {
   }
 }
 
+// The sign-in token. Whoever builds the login screen stores it with setToken after POST /api/auth/login.
+const TOKEN_KEY = "gate-parking-token";
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Storage can be blocked (private mode); the user then has to sign in again.
+  }
+}
+
+// The backend answers errors as { error: "..." }.
+function errorText(data: unknown): string | undefined {
+  if (typeof data !== "object" || data === null) return undefined;
+  const text = "error" in data ? data.error : undefined;
+  return typeof text === "string" && text ? text : undefined;
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -15,10 +42,13 @@ async function request<T>(
 ): Promise<T> {
   let response: Response;
   try {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
     response = await fetch(`/api${path}`, {
       method,
-      headers:
-        body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -32,9 +62,7 @@ async function request<T>(
 
   if (!response.ok) {
     const message =
-      typeof data === "object" && data !== null && "message" in data
-        ? String(data.message)
-        : `Request failed with status ${response.status}`;
+      errorText(data) ?? `Request failed with status ${response.status}`;
     throw new ApiError(message, response.status);
   }
 

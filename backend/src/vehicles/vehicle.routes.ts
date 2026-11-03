@@ -1,20 +1,21 @@
 import {
   Router,
+  type NextFunction,
   type Request,
   type RequestHandler,
   type Response,
 } from "express";
 import { readOwnerId, requireVehicleOwner } from "./vehicle.auth.js";
-import { parseCreateVehicle, parseUpdateVehicle } from "./vehicle.input.js";
+import {
+  parseCreateVehicle,
+  parseUpdateVehicle,
+  type VehicleUpdate,
+} from "./vehicle.input.js";
 import {
   DuplicateLicensePlateError,
   mongoVehicleRepository,
   type VehicleRepository,
 } from "./vehicle.repository.js";
-import {
-  isLicensePlateUnique,
-  normalizeLicensePlate,
-} from "./vehicle.validation.js";
 
 const VEHICLE_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
 
@@ -29,16 +30,80 @@ export function createVehicleRouter({
 }: Partial<VehicleRouterDeps> = {}): Router {
   const router = Router();
   router.use(requireOwner);
-  router.post("/", (req, res) => {
-    void respond(res, () => createVehicle(req, res, vehicles));
-  });
-  router.patch("/:id", (req, res) => {
-    void respond(res, () => updateVehicle(req, res, vehicles));
-  });
-  router.delete("/:id", (req, res) => {
-    void respond(res, () => deleteVehicle(req, res, vehicles));
-  });
+  router.get(
+    "/",
+    handle((req, res) => listVehicles(res, vehicles)),
+  );
+  router.get(
+    "/:id",
+    handle((req, res) => getVehicle(req, res, vehicles)),
+  );
+  router.post(
+    "/",
+    handle((req, res) => createVehicle(req, res, vehicles)),
+  );
+  // PUT replaces all fields, PATCH changes only the fields that are sent.
+  router.put(
+    "/:id",
+    handle((req, res) =>
+      updateVehicle(req, res, vehicles, parseCreateVehicle(req.body)),
+    ),
+  );
+  router.patch(
+    "/:id",
+    handle((req, res) =>
+      updateVehicle(req, res, vehicles, parseUpdateVehicle(req.body)),
+    ),
+  );
+  router.delete(
+    "/:id",
+    handle((req, res) => deleteVehicle(req, res, vehicles)),
+  );
   return router;
+}
+
+async function listVehicles(
+  res: Response,
+  vehicles: VehicleRepository,
+): Promise<void> {
+  const ownerId = readOwnerId(res);
+  if (!ownerId) {
+    res.status(401).json({ error: "Authentication is required" });
+    return;
+  }
+
+  res.status(200).json(await vehicles.listByOwner(ownerId));
+}
+
+async function getVehicle(
+  req: Request,
+  res: Response,
+  vehicles: VehicleRepository,
+): Promise<void> {
+  const ownerId = readOwnerId(res);
+  if (!ownerId) {
+    res.status(401).json({ error: "Authentication is required" });
+    return;
+  }
+
+  const id = readVehicleId(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid vehicle id" });
+    return;
+  }
+
+  const existing = await vehicles.findById(id);
+  if (!existing) {
+    res.status(404).json({ error: "Vehicle not found" });
+    return;
+  }
+
+  if (existing.userId !== ownerId) {
+    res.status(403).json({ error: "You can only view your own vehicle" });
+    return;
+  }
+
+  res.status(200).json(existing);
 }
 
 async function createVehicle(
@@ -58,12 +123,6 @@ async function createVehicle(
     return;
   }
 
-  const plates = await vehicles.listLicensePlates();
-  if (!isLicensePlateUnique(parsed.value.licensePlate, plates)) {
-    res.status(409).json({ error: "License plate is already registered" });
-    return;
-  }
-
   const created = await vehicles.create({ ...parsed.value, userId: ownerId });
   res.status(201).json(created);
 }
@@ -72,6 +131,7 @@ async function updateVehicle(
   req: Request,
   res: Response,
   vehicles: VehicleRepository,
+  parsed: ParsedUpdate,
 ): Promise<void> {
   const ownerId = readOwnerId(res);
   if (!ownerId) {
@@ -85,7 +145,6 @@ async function updateVehicle(
     return;
   }
 
-  const parsed = parseUpdateVehicle(req.body);
   if (!parsed.ok) {
     res.status(400).json({ error: parsed.error });
     return;
@@ -99,18 +158,6 @@ async function updateVehicle(
 
   if (existing.userId !== ownerId) {
     res.status(403).json({ error: "You can only change your own vehicle" });
-    return;
-  }
-
-  if (
-    parsed.value.licensePlate !== undefined &&
-    parsed.value.licensePlate !== existing.licensePlate &&
-    !isLicensePlateUnique(
-      parsed.value.licensePlate,
-      await otherPlates(vehicles, existing.licensePlate),
-    )
-  ) {
-    res.status(409).json({ error: "License plate is already registered" });
     return;
   }
 
@@ -156,34 +203,30 @@ async function deleteVehicle(
   res.status(204).send();
 }
 
-async function otherPlates(
-  vehicles: VehicleRepository,
-  currentPlate: string,
-): Promise<string[]> {
-  const plates = await vehicles.listLicensePlates();
-  const current = normalizeLicensePlate(currentPlate);
-  return plates.filter((plate) => normalizeLicensePlate(plate) !== current);
-}
-
 function readVehicleId(id: string | string[] | undefined): string | null {
   if (typeof id !== "string" || !VEHICLE_ID_PATTERN.test(id)) return null;
   return id;
 }
 
-async function respond(
-  res: Response,
-  action: () => Promise<void>,
-): Promise<void> {
-  try {
-    await action();
-  } catch (error) {
-    if (res.headersSent) return;
+type ParsedUpdate =
+  { ok: true; value: VehicleUpdate } | { ok: false; error: string };
 
-    if (error instanceof DuplicateLicensePlateError) {
-      res.status(409).json({ error: "License plate is already registered" });
-      return;
-    }
-
-    res.status(500).json({ error: "Failed to save the vehicle" });
-  }
+// Only a duplicate plate is expected here (the unique index decides). Anything else goes to
+// the app's error handler, which logs it and answers with a generic 500.
+function handle(
+  action: (req: Request, res: Response) => Promise<void>,
+): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
+    action(req, res).catch((error: unknown) => {
+      if (res.headersSent) {
+        next(error);
+        return;
+      }
+      if (error instanceof DuplicateLicensePlateError) {
+        res.status(409).json({ error: "License plate is already registered" });
+        return;
+      }
+      next(error);
+    });
+  };
 }

@@ -43,7 +43,10 @@ export function createApp({
   });
 
   app.post("/api/auth/login", loginLimiter(rateLimits.login));
-  app.use(["/api/auth", "/api/admin"], apiLimiter(rateLimits.api));
+  app.use(
+    ["/api/auth", "/api/admin", "/api/vehicles"],
+    apiLimiter(rateLimits.api),
+  );
   app.use("/api/auth", authRouter(users, jwtSecret));
   app.use(
     "/api/admin/employees",

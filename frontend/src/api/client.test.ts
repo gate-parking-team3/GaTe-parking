@@ -1,4 +1,4 @@
-import { ApiError, apiClient } from "./client";
+import { ApiError, apiClient, setToken } from "./client";
 
 function mockFetch(status: number, body?: unknown) {
   const fetchMock = vi.fn().mockResolvedValue(
@@ -21,7 +21,7 @@ describe("apiClient", () => {
     await expect(apiClient.get("/vehicles")).resolves.toEqual([{ id: "1" }]);
     expect(fetchMock).toHaveBeenCalledWith("/api/vehicles", {
       method: "GET",
-      headers: undefined,
+      headers: {},
       body: undefined,
     });
   });
@@ -37,6 +37,19 @@ describe("apiClient", () => {
     });
   });
 
+  it("sends the sign-in token when there is one", async () => {
+    const fetchMock = mockFetch(200, []);
+    setToken("abc");
+
+    await apiClient.get("/vehicles");
+    expect(fetchMock).toHaveBeenCalledWith("/api/vehicles", {
+      method: "GET",
+      headers: { Authorization: "Bearer abc" },
+      body: undefined,
+    });
+    setToken(null);
+  });
+
   it("returns nothing for an empty response", async () => {
     mockFetch(204);
 
@@ -44,7 +57,7 @@ describe("apiClient", () => {
   });
 
   it("throws the server's error message", async () => {
-    mockFetch(409, { message: "Plate already registered" });
+    mockFetch(409, { error: "Plate already registered" });
 
     await expect(apiClient.put("/vehicles/1", {})).rejects.toEqual(
       new ApiError("Plate already registered", 409),
