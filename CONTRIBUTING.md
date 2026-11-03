@@ -121,7 +121,7 @@ gh pr create --title "feat(vehicles): add plate validation"
 
 ## 4. Pull requests
 
-Nobody pushes to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces most of this through the ruleset in `.github/rulesets/main-protection.json`.
+Developers never push to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces this through the rulesets in `.github/rulesets/` (see [roles](#8-maintainer-setup-once-in-github-settings)). Maintainers may push to `main` directly, but should still use PRs for anything that deserves a second pair of eyes.
 
 **Opening (`/ship` does it):**
 
@@ -150,7 +150,7 @@ Nobody pushes to `main`. Everything goes through a pull request (PR) with a revi
 
 ## 6. Releases
 
-A release is a version tag on `main` plus a GitHub release and two Docker images on `ghcr.io`. Done once per sprint, by maintainers only (usernames in `.github/maintainers.txt`; the workflow refuses everyone else).
+A release is a version tag on `main` plus a GitHub release and two Docker images on `ghcr.io`. Done once per sprint, by maintainers only (the `maintainers` team or the Admin; the workflow refuses everyone else).
 
 | Version  | When                                |
 | -------- | ----------------------------------- |
@@ -160,7 +160,7 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
 | `v1.0.0` | Final submission                    |
 | `v0.x.1` | Hotfix between sprints (patch bump) |
 
-**How:** repo, Actions, **Release**, Run workflow, type the version. (Or `/release v0.1.0` in Claude Code, or push the tag by hand: `git tag -a v0.1.0 -m v0.1.0 && git push origin v0.1.0`.) The workflow checks the version format and that it is new, that you are a listed maintainer, that the tag is on `main`, and that `main` is green. Then it publishes the images and the release (`0.x` as pre-release). Release notes are generated from merged PR titles.
+**How:** repo, Actions, **Release**, Run workflow, type the version. (Or `/release v0.1.0` in Claude Code, or push the tag by hand: `git tag -a v0.1.0 -m v0.1.0 && git push origin v0.1.0`.) The workflow checks the version format and that it is new, that you are a maintainer, that the tag is on `main`, and that `main` is green. Then it publishes the images and the release (`0.x` as pre-release). Release notes are generated from merged PR titles.
 
 **If something goes wrong:** never delete or move a tag or release and never reuse a version; publish the next patch (`v0.1.1`). If the workflow failed before creating the tag, fix the cause and run it again.
 
@@ -174,7 +174,16 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
 
 ## 8. Maintainer setup (once, in GitHub settings)
 
-- Settings, Rules, Rulesets: import `.github/rulesets/main-protection.json` and `tag-protection.json`. Enable the Copilot code review rule there.
+- Settings, Rules, Rulesets: import `.github/rulesets/main-protection.json`, `main-integrity.json` and `tag-protection.json`. Enable the Copilot code review rule there.
 - Settings, General, Pull Requests: squash merging only, default message "Pull request title", auto-delete head branches.
-- Settings, Collaborators: teammates on **Write**, one or two maintainers on **Admin**. Rulesets treat people by role, so if everyone is Admin everyone can bypass the rules and the protection means nothing. The release check in `maintainers.txt` works regardless.
+- Settings, Collaborators: roles decide who can do what on `main`. Rulesets treat people by role, so keep each role to the people who need it.
+
+  | GitHub role  | Who                | Push to `main` / merge without review | Force-push or delete `main`, change rules and access |
+  | ------------ | ------------------ | ------------------------------------- | ---------------------------------------------------- |
+  | **Admin**    | Jan only           | Yes                                   | Yes                                                  |
+  | **Maintain** | `maintainers` team | Yes (`Protect main` bypass)           | No (`main-integrity` is Admin-only)                  |
+  | **Write**    | `developers` team  | No: PR, one approval, green CI        | No                                                   |
+
+  To make someone a maintainer, move them from the `developers` to the `maintainers` team (organisation → Teams). The team is a code owner, so its members can approve protected files. That is all: they can then push to `main`, approve protected files and publish releases.
+
 - Secrets: never commit `.env`, keys or credentials. Bugs: use the bug report issue template and link the requirement or user story.
