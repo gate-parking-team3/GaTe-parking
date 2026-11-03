@@ -154,6 +154,10 @@ docs/         PBS, scope, API docs, business model, wireframes, test reports
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branching, commit and review rules.
 
+## Deployment
+
+Frontend on Vercel, backend on Render, database on MongoDB Atlas. Setup, backups and free-plan limits: [docs/deployment.md](docs/deployment.md).
+
 ## License
 
 See [LICENSE](LICENSE).

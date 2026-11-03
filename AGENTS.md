@@ -1,18 +1,19 @@
 # GaŤe Parking: rules for AI coding agents
 
-For Codex and any other AI agent working in this repo (Claude Code reads `CLAUDE.md`, which has the same rules). The team is 11 students and several are new to git: keep git safe and simple, and explain what you do in plain language. Full workflow: `CONTRIBUTING.md`. Scope: `docs/SCOPE.md`. Plan: `docs/PBS.md`.
+The single source of rules for every AI agent in this repo (Codex, Copilot, Cursor and others; Claude Code loads this file through `CLAUDE.md`). Student team project (team 3) with 11 contributors, many of whom are new to git. Your job is to keep git safe and simple for them while they work. Read `README.md`, `CONTRIBUTING.md`, `docs/PBS.md` and `docs/SCOPE.md` for project context.
 
-## Git rules (always)
+## Git rules (always follow)
 
-1. **Never commit or push directly to `main`.** If you are on `main`, create a branch first.
-2. **Never force-push**, and never run `git reset --hard`, `git clean`, `git checkout .` or delete branches or files the user did not ask about. If a git problem seems to need one, stop and explain.
-3. **One person, one branch, one topic.** Branch names: `<type>/<short-description>`, type `feat`, `fix`, `docs`, `test` or `chore` (e.g. `feat/vehicle-registration`).
-4. **Sync before you start and before you push:** `git fetch`, then `git merge origin/main`. Resolve conflicts with the user, keeping both sides' work.
-5. **Stay inside the user's task.** Do not reformat, rename or reorganize other people's code, and do not change shared contracts (API shapes, DB schema, data model) unless the task says so.
-6. **Never commit secrets** (`.env`, keys, tokens). New variables go in `.env.example`.
-7. **Changes reach `main` only through a pull request** reviewed by a teammate. Never approve a PR for the user and never merge one that is unreviewed, red or has unresolved conversations. One topic per PR, under about 400 changed lines.
+1. **Never commit or push directly to `main`.** If the current branch is `main`, create a branch first.
+2. **Never force-push** (`--force`, `--force-with-lease`) and never `git reset --hard`, `git clean -fd`, `git checkout .` or delete branches/files the user did not ask about. If a git problem seems to need one of these, stop and explain the situation in plain language first.
+3. **One person, one branch, one topic.** Branch names: `<type>/<short-description>` with type `feat`, `fix`, `docs`, `test` or `chore` (e.g. `feat/vehicle-registration`).
+4. **Sync before you start and before you push**: fetch, then merge `origin/main` into the branch. Resolve conflicts with the user, never by discarding their or a teammate's changes.
+5. **Only touch your own area.** Stay inside the files needed for the user's PBS task. Do not reformat, rename or reorganize other people's code, and do not change shared contracts (API shapes, DB schema, data model) unless the task says so. If a change is needed outside the task, tell the user to talk to the team first.
+6. **Never commit secrets**: `.env`, keys, credentials, tokens. Use `.env.example` for new variables. Only stage files that belong to the task, never build output.
+7. **Changes reach `main` only through a pull request** reviewed by a teammate (rules: `CONTRIBUTING.md`). Never approve a PR on the user's behalf, and never merge a PR that is unreviewed, red or has unresolved conversations. Keep PRs to one topic and under ~400 changed lines.
+8. **Commit only when the user asks** (or through the Claude Code slash commands in `CLAUDE.md`).
 
-## Commit and PR title format (the commit hook and CI warn about anything else)
+## Commit and PR title format
 
 Conventional Commits, **a single line, no body**:
 
@@ -24,10 +25,10 @@ feat(vehicles): add plate validation
 - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`.
 - The description starts with a lower-case word, is imperative, has no full stop, and the whole line is at most 72 characters.
 - Names and acronyms later in the line are fine (`add JWT login`).
+- Only an attribution trailer may follow the line.
 - The PR title follows the same format, because squash merging uses it as the commit on `main`. CI checks the PR title and the `.githooks/commit-msg` hook checks each commit locally; both only warn, so get it right yourself.
-- Commit only when the user asks.
 
-## Equivalent of the Claude slash commands
+## Everyday git steps
 
 | Step                 | Commands                                                                 |
 | -------------------- | ------------------------------------------------------------------------ |
@@ -36,10 +37,29 @@ feat(vehicles): add plate validation
 | Bring in teammates   | `git fetch origin && git merge origin/main`                              |
 | Push and open the PR | `git push -u origin <branch>` then `gh pr create` using the PR template  |
 
-Only stage files that belong to the task, never `.env` or build output.
+## Talking to the user
 
-## Stack and checks
+Assume the user does not know git. Explain what you are about to do in one plain sentence, and what happened afterwards. Do not use jargon without a short explanation. When something goes wrong, say what state their work is in (it is safe / it is not committed yet) before proposing a fix.
 
-React + TypeScript (Vite) frontend, Node.js + Express + TypeScript backend, MongoDB (Mongoose), npm workspaces. Run `npm run check` (format, lint, types, tests, build) before committing or opening a PR; it must pass. Do not add other frameworks or dependency managers without team agreement.
+## Project layout
 
-**Never make CI pass by weakening it:** no skipped or deleted tests, no `eslint-disable` or `@ts-ignore` to hide problems, no lowered coverage thresholds, no `continue-on-error`. Do not edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the task is about them; a maintainer must approve those. Keep every Docker `HEALTHCHECK` and the `GET /api/health` endpoint working.
+- `backend/`: backend app, DB migrations, backend tests
+- `frontend/`: frontend app and tests
+- `docs/`: PBS, scope, API docs, business model, wireframes, test reports
+
+Stack: React + TypeScript (Vite) frontend, Node.js + Express + TypeScript backend, MongoDB (Mongoose). npm workspaces; run `npm run check` (format, lint, types, tests, build) before committing or opening a PR; it must pass. Do not introduce other frameworks or dependency managers without team agreement. New contributors follow `CONTRIBUTING.md`.
+
+## Domain reminders
+
+- Roles: signed-in user and administrator. Admins can edit and delete any reservation; users only their own.
+- Vehicles have a license plate, engine type (combustion / electric) and size (small / standard / large).
+- Spots have a type (standard / disabled / EV), a size and a status (free / reserved / occupied).
+- Scope is decided in `docs/SCOPE.md`: the 11 user stories are the MVP; gate hardware, live charger status/tariffs and analytics are stretch. Check it before building something that is not in a user story.
+
+## CI and Docker integrity
+
+Never make CI pass by weakening it. Do not skip, delete or loosen tests, add `eslint-disable` / `@ts-ignore` / `continue-on-error`, lower coverage thresholds, or edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the user's task is about them (these need maintainer approval, see `.github/CODEOWNERS`). If a check fails, fix the cause or explain it to the user. Keep every Docker `HEALTHCHECK` and the `/api/health` endpoint working.
+
+## Quality
+
+Keep changes small and match the surrounding code style (`.editorconfig`). Add or update tests and docs for what you change. Do not leave debug code, commented-out blocks or stray files.
