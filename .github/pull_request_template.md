@@ -15,7 +15,7 @@
 ## Checklist
 
 - [ ] Title follows Conventional Commits
-- [ ] One task only, under ~400 changed lines
+- [ ] One task only, under ~1000 changed lines of code (not counting tests, docs, lockfile)
 - [ ] `npm run check` passes locally
 - [ ] No conflicts with `main` (`/sync` if there are)
 - [ ] Works locally

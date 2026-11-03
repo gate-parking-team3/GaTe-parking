@@ -10,7 +10,7 @@ The single source of rules for every AI agent in this repo (Codex, Copilot, Curs
 4. **Sync before you start and before you push**: fetch, then merge `origin/main` into the branch. Resolve conflicts with the user, never by discarding their or a teammate's changes.
 5. **Only touch your own area.** Stay inside the files needed for the user's PBS task. Do not reformat, rename or reorganize other people's code, and do not change shared contracts (API shapes, DB schema, data model) unless the task says so. If a change is needed outside the task, tell the user to talk to the team first.
 6. **Never commit secrets**: `.env`, keys, credentials, tokens. Use `.env.example` for new variables. Only stage files that belong to the task, never build output.
-7. **Changes reach `main` only through a pull request** reviewed by a teammate (rules: `CONTRIBUTING.md`). Never approve a PR on the user's behalf, and never merge a PR that is unreviewed, red or has unresolved conversations. Keep PRs to one topic and under ~400 changed lines.
+7. **Changes reach `main` only through a pull request** reviewed by a teammate (rules: `CONTRIBUTING.md`). Never approve a PR on the user's behalf, and never merge a PR that is unreviewed, red or has unresolved conversations. Keep PRs to one topic and under ~1000 changed lines of code (tests, docs and `package-lock.json` do not count).
 8. **Commit only when the user asks** (or through the Claude Code slash commands in `CLAUDE.md`).
 
 ## Commit and PR title format
