@@ -10,7 +10,7 @@ The single source of rules for every AI agent in this repo (Codex, Copilot, Curs
 4. **Sync before you start and before you push**: fetch, then merge `origin/main` into the branch. Resolve conflicts with the user, never by discarding their or a teammate's changes.
 5. **Only touch your own area.** Stay inside the files needed for the user's PBS task. Do not reformat, rename or reorganize other people's code, and do not change shared contracts (API shapes, DB schema, data model) unless the task says so. If a change is needed outside the task, tell the user to talk to the team first.
 6. **Never commit secrets**: `.env`, keys, credentials, tokens. Use `.env.example` for new variables. Only stage files that belong to the task, never build output.
-7. **Changes reach `main` only through a pull request** reviewed by a teammate (rules: `CONTRIBUTING.md`). Never approve a PR on the user's behalf, and never merge a PR that is unreviewed, red or has unresolved conversations. Keep PRs to one topic and under ~1000 changed lines of code (tests, docs and `package-lock.json` do not count).
+7. **Changes reach `main` only through a pull request** (rules: `CONTRIBUTING.md`). Never approve a PR on the user's behalf, and never merge a PR that is red or has unresolved conversations. Merge an unreviewed PR only when the user asks and has the Admin role on the repo (check: `gh api repos/{owner}/{repo} --jq .permissions.admin` is `true`); GitHub lets Admins bypass the review rule. Everyone else needs a teammate's approval first. Keep PRs to one topic and under ~1000 changed lines of code (tests, docs and `package-lock.json` do not count).
 8. **Commit only when the user asks** (or through the Claude Code slash commands in `CLAUDE.md`).
 
 ## Commit and PR title format
@@ -25,7 +25,7 @@ feat(vehicles): add plate validation
 - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`.
 - The description starts with a lower-case word, is imperative, has no full stop, and the whole line is at most 72 characters.
 - Names and acronyms later in the line are fine (`add JWT login`).
-- Only an attribution trailer may follow the line.
+- Nothing may follow the line: no body and no AI attribution (`Co-Authored-By`, session links). The same goes for PR descriptions.
 - The PR title follows the same format, because squash merging uses it as the commit on `main`. CI checks the PR title and the `.githooks/commit-msg` hook checks each commit locally; both only warn, so get it right yourself.
 
 ## Everyday git steps

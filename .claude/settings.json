@@ -1,4 +1,9 @@
 {
+  "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "deny": [
       "Bash(git push --force:*)",

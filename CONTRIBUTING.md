@@ -88,7 +88,7 @@ feat(reservations): add time window validation
 - Types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `style`, `ci`.
 - Imperative, starting with a lower-case word (names and acronyms later in the line are fine: `add JWT login`, `show GaŤe name`), no full stop, 72 characters max. One logical change per commit.
 - Good: `fix(auth): reject expired tokens`. Bad: `Fixed stuff`, `WIP`, `Update README.md.`
-- The `Co-Authored-By: ...` line Claude adds at the end is allowed.
+- No `Co-Authored-By` lines for AI tools. The team's Claude Code settings already turn them off.
 - Dependabot's `chore(deps): ...` commits are exempt.
 
 The `commit-msg` hook checks the message on your computer when you commit: if it is wrong, you get a warning showing the right format, but the commit is still made, because branch commit messages never reach `main`. `/save` writes a valid message for you. What matters is the PR title, because squash merging turns it into the single commit on `main`.
