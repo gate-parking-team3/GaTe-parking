@@ -42,7 +42,7 @@ export const mongoVehicleRepository: VehicleRepository = {
   async update(id, patch) {
     try {
       const doc = await VehicleModel.findByIdAndUpdate(id, patch, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }).lean();
       return doc ? toVehicleRecord(doc) : null;
