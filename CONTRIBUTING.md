@@ -121,7 +121,7 @@ gh pr create --title "feat(vehicles): add plate validation"
 
 ## 4. Pull requests
 
-Nobody pushes to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces most of this through the ruleset in `.github/rulesets/main-protection.json`.
+Developers never push to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces this through the rulesets in `.github/rulesets/` (see [roles](#8-maintainer-setup-once-in-github-settings)). Maintainers may push to `main` directly, but should still use PRs for anything that deserves a second pair of eyes.
 
 **Opening (`/ship` does it):**
 
@@ -174,7 +174,16 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
 
 ## 8. Maintainer setup (once, in GitHub settings)
 
-- Settings, Rules, Rulesets: import `.github/rulesets/main-protection.json` and `tag-protection.json`. Enable the Copilot code review rule there.
+- Settings, Rules, Rulesets: import `.github/rulesets/main-protection.json`, `main-integrity.json` and `tag-protection.json`. Enable the Copilot code review rule there.
 - Settings, General, Pull Requests: squash merging only, default message "Pull request title", auto-delete head branches.
-- Settings, Collaborators: teammates on **Write**, one or two maintainers on **Admin**. Rulesets treat people by role, so if everyone is Admin everyone can bypass the rules and the protection means nothing. The release check in `maintainers.txt` works regardless.
+- Settings, Collaborators: roles decide who can do what on `main`. Rulesets treat people by role, so keep each role to the people who need it.
+
+  | GitHub role  | Who           | Push to `main` / merge without review | Force-push or delete `main`, change rules and access |
+  | ------------ | ------------- | ------------------------------------- | ---------------------------------------------------- |
+  | **Admin**    | Jan only      | Yes                                   | Yes                                                  |
+  | **Maintain** | Maintainers   | Yes (`Protect main` bypass)           | No (`main-integrity` is Admin-only)                  |
+  | **Write**    | Everyone else | No: PR, one approval, green CI        | No                                                   |
+
+  Maintainers also go in `.github/maintainers.txt` (releases) and `.github/CODEOWNERS` (approving protected files).
+
 - Secrets: never commit `.env`, keys or credentials. Bugs: use the bug report issue template and link the requirement or user story.
