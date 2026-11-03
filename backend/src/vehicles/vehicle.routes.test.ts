@@ -1,10 +1,7 @@
 import express, { type RequestHandler } from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import {
-  requireVehicleOwner,
-  type AuthenticatedRequest,
-} from "./vehicle.auth.js";
+import { requireVehicleOwner } from "./vehicle.auth.js";
 import {
   DuplicateLicensePlateError,
   type VehicleRepository,
@@ -47,7 +44,7 @@ function memoryVehicles(): VehicleRepository {
 
 function asUser(userId: string): RequestHandler {
   return (req, res, next) => {
-    (req as AuthenticatedRequest).user = { id: userId };
+    Object.assign(req, { user: { id: userId } });
     requireVehicleOwner(req, res, next);
   };
 }
