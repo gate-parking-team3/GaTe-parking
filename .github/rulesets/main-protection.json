@@ -15,8 +15,8 @@
       "bypass_mode": "always"
     },
     {
-      "actor_id": 2,
-      "actor_type": "RepositoryRole",
+      "actor_id": 20368955,
+      "actor_type": "Team",
       "bypass_mode": "always"
     }
   ],

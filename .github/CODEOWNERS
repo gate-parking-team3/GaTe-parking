@@ -1,14 +1,14 @@
 # Changes to these paths need approval from a maintainer (enforced by the main ruleset).
-# Add more maintainers like: /.github/ @Jansyler @another-username
-/.github/ @Jansyler
-/.claude/ @Jansyler
-/CLAUDE.md @Jansyler
-/backend/Dockerfile @Jansyler
-/frontend/Dockerfile @Jansyler
-/frontend/nginx.conf @Jansyler
-/docker-compose.yml @Jansyler
-/eslint.config.js @Jansyler
-/package.json @Jansyler
-/package-lock.json @Jansyler
-/tsconfig.base.json @Jansyler
-/AGENTS.md @Jansyler
+# Maintainers = the gate-parking-team3/maintainers team; add people to the team, not here.
+/.github/ @Jansyler @gate-parking-team3/maintainers
+/.claude/ @Jansyler @gate-parking-team3/maintainers
+/CLAUDE.md @Jansyler @gate-parking-team3/maintainers
+/backend/Dockerfile @Jansyler @gate-parking-team3/maintainers
+/frontend/Dockerfile @Jansyler @gate-parking-team3/maintainers
+/frontend/nginx.conf @Jansyler @gate-parking-team3/maintainers
+/docker-compose.yml @Jansyler @gate-parking-team3/maintainers
+/eslint.config.js @Jansyler @gate-parking-team3/maintainers
+/package.json @Jansyler @gate-parking-team3/maintainers
+/package-lock.json @Jansyler @gate-parking-team3/maintainers
+/tsconfig.base.json @Jansyler @gate-parking-team3/maintainers
+/AGENTS.md @Jansyler @gate-parking-team3/maintainers
