@@ -8,6 +8,8 @@ Authorization: Bearer <token>
 
 Tokens expire after 8 hours. Logout is done on the frontend by forgetting the token. The account is checked on every request, so disabling an employee or changing their role takes effect immediately, even for tokens already issued.
 
+Requests are rate limited per IP address over 15 minutes: 10 failed logins (successful logins do not count) and 300 requests to the signed-in endpoints. Over the limit the API answers `429` with `{ "error": "..." }` and a `RateLimit` header saying when to retry.
+
 Errors have the shape `{ "error": "<message>" }`. A malformed JSON body gets 400 `Invalid request`; an unexpected server failure gets 500 `Something went wrong`.
 
 ## User

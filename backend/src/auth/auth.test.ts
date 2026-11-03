@@ -144,3 +144,38 @@ describe("GET /api/auth/me", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("rate limiting", () => {
+  const limited = () =>
+    createApp({
+      users: memoryUserStore(users),
+      jwtSecret: SECRET,
+      rateLimits: { login: 2, api: 3 },
+    });
+
+  it("blocks login after too many failed attempts, not counting successes", async () => {
+    const app = limited();
+    const attempt = (password: string) =>
+      request(app)
+        .post("/api/auth/login")
+        .send({ email: "petr@gate.cz", password });
+    expect((await attempt("secret123")).status).toBe(200);
+    expect((await attempt("nope")).status).toBe(401);
+    expect((await attempt("nope")).status).toBe(401);
+    const blocked = await attempt("secret123");
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toEqual({
+      error: "Too many login attempts, try again in 15 minutes",
+    });
+  });
+
+  it("limits signed-in endpoints", async () => {
+    const app = limited();
+    const me = () =>
+      request(app)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${signToken("u1", SECRET)}`);
+    for (let i = 0; i < 3; i++) expect((await me()).status).toBe(200);
+    expect((await me()).status).toBe(429);
+  });
+});
