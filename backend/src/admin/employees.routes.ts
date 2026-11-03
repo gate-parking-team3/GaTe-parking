@@ -53,10 +53,15 @@ export function employeesRouter(users: UserStore): Router {
         .json({ error: "Nothing to change: send role and/or status" });
       return;
     }
+    const target = await users.findById(req.params.id);
+    if (!target) {
+      res.status(404).json({ error: "Employee not found" });
+      return;
+    }
     // Stops an admin from locking themselves out (and possibly leaving no admin at all).
-    const isSelf = req.params.id === req.user?.id;
+    // Compares stored ids, because one ObjectId can be written in several ways (e.g. upper case).
     if (
-      isSelf &&
+      target.id === req.user?.id &&
       (changes.role === "user" ||
         (changes.status && changes.status !== "active"))
     ) {
@@ -65,7 +70,7 @@ export function employeesRouter(users: UserStore): Router {
         .json({ error: "You cannot remove your own admin access" });
       return;
     }
-    const updated = await users.update(req.params.id, changes);
+    const updated = await users.update(target.id, changes);
     if (!updated) {
       res.status(404).json({ error: "Employee not found" });
       return;

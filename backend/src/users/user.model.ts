@@ -62,7 +62,7 @@ export const mongoUserStore: UserStore = {
   async update(id, changes) {
     if (!mongoose.isValidObjectId(id)) return null;
     const doc = await UserModel.findByIdAndUpdate(id, changes, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
     return doc ? toUser(doc) : null;

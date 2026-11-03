@@ -1,5 +1,6 @@
+import jwt from "jsonwebtoken";
 import request from "supertest";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { memoryUserStore } from "../users/memory-user-store.js";
 import type { User } from "../users/user.js";
@@ -85,6 +86,27 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(400);
   });
 
+  it("answers a malformed JSON body with a JSON 400", async () => {
+    const res = await request(app())
+      .post("/api/auth/login")
+      .set("Content-Type", "application/json")
+      .send("{not json");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid request" });
+  });
+
+  it("hides storage failures behind a JSON 500", async () => {
+    const failing = memoryUserStore();
+    failing.findByEmail = () => Promise.reject(new Error("db down"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await request(createApp({ users: failing, jwtSecret: SECRET }))
+      .post("/api/auth/login")
+      .send({ email: "petr@gate.cz", password: "secret123" });
+    errorLog.mockRestore();
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "Something went wrong" });
+  });
+
   it.each([
     ["new@gate.cz", "Account is waiting for approval"],
     ["gone@gate.cz", "Account is disabled"],
@@ -110,6 +132,10 @@ describe("GET /api/auth/me", () => {
     ["no header", undefined],
     ["a malformed header", "Token abc"],
     ["a forged token", `Bearer ${signToken("u1", "other-secret")}`],
+    [
+      "a token signed with another algorithm",
+      `Bearer ${jwt.sign({}, SECRET, { subject: "u1", algorithm: "HS512" })}`,
+    ],
     ["an unknown user", `Bearer ${signToken("ghost", SECRET)}`],
     ["a disabled user", `Bearer ${signToken("d1", SECRET)}`],
   ])("returns 401 for %s", async (_label, header) => {

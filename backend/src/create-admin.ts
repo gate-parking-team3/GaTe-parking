@@ -11,9 +11,16 @@ import { mongoUserStore } from "./users/user.model.js";
 config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
 const [email, name, password] = process.argv.slice(2);
-if (!email || !name || !password || password.length < 8) {
+// bcrypt ignores everything after 72 bytes, so longer passwords are refused.
+if (
+  !email ||
+  !name ||
+  !password ||
+  password.length < 8 ||
+  Buffer.byteLength(password) > 72
+) {
   console.error(
-    "Usage: npm run create-admin -w backend -- <email> <name> <password (8+ chars)>",
+    "Usage: npm run create-admin -w backend -- <email> <name> <password (8+ chars, max 72 bytes)>",
   );
   process.exit(1);
 }
@@ -24,7 +31,9 @@ await connectDb(
 const existing = await mongoUserStore.findByEmail(email);
 if (existing) {
   await mongoUserStore.update(existing.id, { role: "admin", status: "active" });
-  console.log(`${existing.email} is now an active admin`);
+  console.log(
+    `${existing.email} is now an active admin (name and password unchanged)`,
+  );
 } else {
   const created = await mongoUserStore.create({
     email: normalizeEmail(email),

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { normalizeEmail, type User, type UserStore } from "./user.js";
 
 // In-memory UserStore for tests. Copies the input so tests do not affect each other.
@@ -20,7 +21,7 @@ export function memoryUserStore(initial: User[] = []): UserStore {
       return user;
     },
     async create(user) {
-      const created = { ...user, id: String(users.length + 1) };
+      const created = { ...user, id: randomUUID() };
       users.push(created);
       return created;
     },

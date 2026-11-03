@@ -1,5 +1,5 @@
 import cors from "cors";
-import express from "express";
+import express, { type ErrorRequestHandler } from "express";
 import mongoose from "mongoose";
 import { employeesRouter } from "./admin/employees.routes.js";
 import { authRouter } from "./auth/auth.routes.js";
@@ -37,5 +37,22 @@ export function createApp({
     employeesRouter(users),
   );
 
+  app.use(jsonErrors);
+
   return app;
 }
+
+// Keeps the { error } shape for malformed JSON and unexpected failures, without leaking details.
+const jsonErrors: ErrorRequestHandler = (err, _req, res, next) => {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  const status = (err as { status?: number }).status ?? 500;
+  if (status >= 400 && status < 500) {
+    res.status(status).json({ error: "Invalid request" });
+    return;
+  }
+  console.error(err);
+  res.status(500).json({ error: "Something went wrong" });
+};

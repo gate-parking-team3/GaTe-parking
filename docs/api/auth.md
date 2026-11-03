@@ -8,7 +8,7 @@ Authorization: Bearer <token>
 
 Tokens expire after 8 hours. Logout is done on the frontend by forgetting the token. The account is checked on every request, so disabling an employee or changing their role takes effect immediately, even for tokens already issued.
 
-Errors have the shape `{ "error": "<message>" }`.
+Errors have the shape `{ "error": "<message>" }`. A malformed JSON body gets 400 `Invalid request`; an unexpected server failure gets 500 `Something went wrong`.
 
 ## User
 
@@ -88,4 +88,4 @@ Nobody can approve accounts until an admin exists. Create one locally (MongoDB m
 npm run create-admin -w backend -- hynek@gate.cz "Hynek" "a-strong-password"
 ```
 
-Running it again for an existing email makes that account an active admin.
+The password needs at least 8 characters and at most 72 bytes (bcrypt ignores anything longer). Running it again for an existing email makes that account an active admin; its name and password stay unchanged.
