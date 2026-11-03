@@ -12,6 +12,7 @@ import {
 } from "./auth/rate-limit.js";
 import type { UserStore } from "./users/user.js";
 import { mongoUserStore } from "./users/user.model.js";
+import { createVehicleRouter } from "./vehicles/vehicle.routes.js";
 
 type AppOptions = {
   dbReady?: () => boolean;
@@ -49,6 +50,11 @@ export function createApp({
     requireAuth(users, jwtSecret),
     requireRole("admin"),
     employeesRouter(users),
+  );
+  app.use(
+    "/api/vehicles",
+    requireAuth(users, jwtSecret),
+    createVehicleRouter(),
   );
 
   app.use(jsonErrors);
