@@ -144,7 +144,7 @@ Nobody pushes to `main`. Everything goes through a pull request (PR) with a revi
 
 - **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (50% minimum for now, we will raise it as the code grows), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
 - CI jobs: `Check` (format, lint, types, tests, build), `PR title` (Conventional Commit; a wrong title gives a warning and a help comment, it does not block the merge), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
-- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
+- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`, `AGENTS.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
 - Docker: only `backend/Dockerfile`, `frontend/Dockerfile` and `docker-compose.yml` define images and the local stack. Images build from the repo root with `npm ci`, run as non-root, contain no dev dependencies or secrets, and keep their `HEALTHCHECK`. Compose waits for healthy dependencies.
 - `GET /api/health` returns 200 `{status:"ok",db:"up"}`, or 503 when MongoDB is down. Keep it working.
 
