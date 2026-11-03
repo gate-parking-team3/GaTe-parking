@@ -49,6 +49,9 @@
           },
           {
             "context": "PR title"
+          },
+          {
+            "context": "No AI attribution"
           }
         ]
       }

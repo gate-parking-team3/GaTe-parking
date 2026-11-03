@@ -1,0 +1,43 @@
+name: No AI attribution
+
+# AI tools and bots must not be commit authors or co-authors, because GitHub lists them as contributors.
+# Squash merges copy every Co-authored-by line of the PR's commits into the commit on main, so each PR commit is checked.
+# Dependabot and GitHub Actions are allowed.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: No AI attribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check the authors and co-authors of every PR commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Matched against email addresses only, so a teammate named e.g. Claude is fine.
+          agent='<[^>]*(anthropic\.com|openai\.com|cursor\.(com|sh)|copilot|devin|aider|codeium|windsurf|gemini|claude|codex|\[bot\])[^>]*>'
+          allowed='dependabot\[bot\]|github-actions\[bot\]'
+          found=0
+          for c in $(git rev-list "$BASE..$HEAD"); do
+            people=$(git log -1 --format='%an <%ae>%n%cn <%ce>%n%(trailers:key=Co-authored-by,valueonly)' "$c")
+            hits=$(printf '%s\n' "$people" | grep -iE "$agent" | grep -viE "$allowed" | sort -u | paste -sd ',' || true)
+            if [ -n "$hits" ]; then
+              found=1
+              echo "::error title=AI attribution in $(git log -1 --format=%h "$c")::$(git log -1 --format=%s "$c") -> $hits"
+            fi
+          done
+          if [ "$found" = 1 ]; then
+            echo "❌ Some commits are authored or co-authored by an AI tool or bot. Remove the \`Co-authored-by\` lines (or recommit the changes yourself on a new branch), see CONTRIBUTING.md." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✅ No AI authors or co-authors." >> "$GITHUB_STEP_SUMMARY"
