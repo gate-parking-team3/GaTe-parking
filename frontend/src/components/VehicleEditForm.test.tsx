@@ -7,6 +7,7 @@ import VehicleEditForm from "./VehicleEditForm";
 
 const vehicle: Vehicle = {
   id: "abc",
+  userId: "user-1",
   licensePlate: "1AB2345",
   brand: "Škoda",
   model: "Octavia",
@@ -39,7 +40,7 @@ describe("VehicleEditForm", () => {
   });
 
   it("saves the changes and reports the saved vehicle", async () => {
-    const saved = { ...vehicle, model: "Enyaq", engineType: "electric" };
+    const saved = { ...vehicle, model: "Enyaq", engineType: "plug-in" };
     const update = vi
       .spyOn(vehicleApi, "update")
       .mockResolvedValue(saved as Vehicle);
@@ -48,14 +49,14 @@ describe("VehicleEditForm", () => {
 
     await user.clear(screen.getByLabelText("Model"));
     await user.type(screen.getByLabelText("Model"), "Enyaq");
-    await user.selectOptions(screen.getByLabelText("Engine type"), "electric");
+    await user.selectOptions(screen.getByLabelText("Engine type"), "plug-in");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(update).toHaveBeenCalledWith("abc", {
       licensePlate: "1AB2345",
       brand: "Škoda",
       model: "Enyaq",
-      engineType: "electric",
+      engineType: "plug-in",
       size: "standard",
     });
     expect(onSaved).toHaveBeenCalledWith(saved);
@@ -84,6 +85,31 @@ describe("VehicleEditForm", () => {
     );
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("does not save a plate with special characters", async () => {
+    const update = vi.spyOn(vehicleApi, "update");
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByLabelText("License plate"));
+    await user.type(screen.getByLabelText("License plate"), "1AB-2345");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "License plate must be 1–12 letters or digits",
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("does not accept more than 12 characters", async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByLabelText("License plate"));
+    await user.type(screen.getByLabelText("License plate"), "ABCDEFGH12345");
+
+    expect(screen.getByLabelText("License plate")).toHaveValue("ABCDEFGH1234");
   });
 
   it("calls onCancel when cancelled", async () => {

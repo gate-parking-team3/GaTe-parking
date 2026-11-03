@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { vehicleApi } from "../api/vehicleApi";
-import type {
-  EngineType,
-  Vehicle,
-  VehicleInput,
-  VehicleSize,
+import {
+  isValidLicensePlate,
+  LICENSE_PLATE_MAX_LENGTH,
+  type EngineType,
+  type Vehicle,
+  type VehicleInput,
+  type VehicleSize,
 } from "../types/vehicle";
 
 type VehicleEditFormProps = {
@@ -18,8 +20,13 @@ export default function VehicleEditForm({
   onSaved,
   onCancel,
 }: VehicleEditFormProps) {
-  const { id, ...initialValues } = vehicle;
-  const [values, setValues] = useState<VehicleInput>(initialValues);
+  const [values, setValues] = useState<VehicleInput>({
+    licensePlate: vehicle.licensePlate,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    engineType: vehicle.engineType,
+    size: vehicle.size,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,10 +39,16 @@ export default function VehicleEditForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isValidLicensePlate(values.licensePlate)) {
+      setError(
+        `License plate must be 1–${LICENSE_PLATE_MAX_LENGTH} letters or digits, with no spaces or special characters.`,
+      );
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      onSaved(await vehicleApi.update(id, values));
+      onSaved(await vehicleApi.update(vehicle.id, values));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Saving failed. Please try again.",
@@ -54,6 +67,7 @@ export default function VehicleEditForm({
         <input
           value={values.licensePlate}
           onChange={(event) => setField("licensePlate", event.target.value)}
+          maxLength={LICENSE_PLATE_MAX_LENGTH}
           required
         />
       </label>
@@ -85,7 +99,7 @@ export default function VehicleEditForm({
           }
         >
           <option value="combustion">Combustion</option>
-          <option value="electric">Electric</option>
+          <option value="plug-in">Plug-in</option>
         </select>
       </label>
 

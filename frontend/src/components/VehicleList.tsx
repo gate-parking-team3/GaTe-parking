@@ -5,7 +5,7 @@ import VehicleEditForm from "./VehicleEditForm";
 
 const engineLabels: Record<EngineType, string> = {
   combustion: "Combustion",
-  electric: "Electric",
+  "plug-in": "Plug-in",
 };
 
 const sizeLabels: Record<VehicleSize, string> = {

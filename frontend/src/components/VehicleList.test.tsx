@@ -7,6 +7,7 @@ import VehicleList from "./VehicleList";
 
 const octavia: Vehicle = {
   id: "1",
+  userId: "user-1",
   licensePlate: "1AB2345",
   brand: "Škoda",
   model: "Octavia",
@@ -16,10 +17,11 @@ const octavia: Vehicle = {
 
 const enyaq: Vehicle = {
   id: "2",
+  userId: "user-1",
   licensePlate: "2EV0001",
   brand: "Škoda",
   model: "Enyaq",
-  engineType: "electric",
+  engineType: "plug-in",
   size: "large",
 };
 
@@ -43,7 +45,7 @@ describe("VehicleList", () => {
 
     expect(await screen.findByText("2EV0001")).toBeInTheDocument();
     expect(screen.getByText("Octavia")).toBeInTheDocument();
-    expect(screen.getByText("Electric")).toBeInTheDocument();
+    expect(screen.getByText("Plug-in")).toBeInTheDocument();
     expect(screen.getByText("Large")).toBeInTheDocument();
   });
 
