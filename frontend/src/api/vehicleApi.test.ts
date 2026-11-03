@@ -6,7 +6,7 @@ const input: VehicleInput = {
   licensePlate: "1AB2345",
   brand: "Škoda",
   model: "Octavia",
-  engineType: "plug-in",
+  engineType: "electric",
   size: "standard",
 };
 

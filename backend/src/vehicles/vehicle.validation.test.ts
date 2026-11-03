@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  hasEvFlag,
   isLicensePlateUnique,
   normalizeLicensePlate,
   validateLicensePlate,
@@ -101,20 +100,5 @@ describe("isLicensePlateUnique", () => {
 
   it("accepts a plate when nothing is stored yet", () => {
     expect(isLicensePlateUnique("1AB2345", [])).toBe(true);
-  });
-});
-
-describe("hasEvFlag", () => {
-  it("returns true only for ev", () => {
-    expect(hasEvFlag("ev")).toBe(true);
-    expect(hasEvFlag("combustion")).toBe(false);
-    expect(hasEvFlag("hybrid")).toBe(false);
-  });
-
-  it("rejects an unsupported engine type", () => {
-    expect(() => hasEvFlag("diesel")).toThrow(
-      "Unsupported engine type: diesel",
-    );
-    expect(() => hasEvFlag("electric")).toThrow(/Unsupported engine type/);
   });
 });

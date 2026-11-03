@@ -21,7 +21,7 @@ const enyaq: Vehicle = {
   licensePlate: "2EV0001",
   brand: "Škoda",
   model: "Enyaq",
-  engineType: "plug-in",
+  engineType: "electric",
   size: "large",
 };
 
@@ -45,7 +45,7 @@ describe("VehicleList", () => {
 
     expect(await screen.findByText("2EV0001")).toBeInTheDocument();
     expect(screen.getByText("Octavia")).toBeInTheDocument();
-    expect(screen.getByText("Plug-in")).toBeInTheDocument();
+    expect(screen.getByText("Electric")).toBeInTheDocument();
     expect(screen.getByText("Large")).toBeInTheDocument();
   });
 

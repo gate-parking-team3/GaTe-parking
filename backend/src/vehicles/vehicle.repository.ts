@@ -4,7 +4,7 @@ import { VehicleModel } from "./vehicle.model.js";
 export type VehicleUpdateFields = Partial<VehicleFields>;
 
 export interface VehicleRepository {
-  listLicensePlates(): Promise<string[]>;
+  listByOwner(userId: string): Promise<VehicleRecord[]>;
   create(input: VehicleFields & { userId: string }): Promise<VehicleRecord>;
   findById(id: string): Promise<VehicleRecord | null>;
   update(id: string, patch: VehicleUpdateFields): Promise<VehicleRecord | null>;
@@ -19,9 +19,9 @@ export class DuplicateLicensePlateError extends Error {
 }
 
 export const mongoVehicleRepository: VehicleRepository = {
-  async listLicensePlates() {
-    const docs = await VehicleModel.find().select("licensePlate").lean();
-    return docs.map((doc) => doc.licensePlate);
+  async listByOwner(userId) {
+    const docs = await VehicleModel.find({ userId }).lean();
+    return docs.map(toVehicleRecord);
   },
 
   async create(input) {
