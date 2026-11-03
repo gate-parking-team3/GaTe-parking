@@ -135,7 +135,7 @@ Developers never push to `main`. Everything goes through a pull request (PR) wit
 - One approval from a teammate. Reviewers: if the author pushes big changes after you approved, take another look.
 - Check the PR title too: a wrong title only warns, so get it fixed before merging (the merger can also correct it in the merge dialog).
 - All review conversations must be resolved. Copilot reviews every PR and again after each push; treat its comments as a free first review and fix them or reply why not.
-- Changes to CI, Docker, tooling and Claude rules (`.github/CODEOWNERS`) also need a maintainer's approval.
+- Changes to CI, Docker, tooling and Claude rules also need the project lead's approval (Jan, see `.github/CODEOWNERS`), not just any teammate's.
 - Reviewers: read the diff, run the branch if the change is non-trivial, check it against the user story. Be specific and kind. Review within one working day. Approve only what you read.
 
 **Merging (enforced):** `Check`, `PR title`, `Docker build` and `Smoke test` green (fix any PR title warning before merging). Use **squash merge** unless there is a reason to keep the individual commits; merge commits and rebase are allowed too, but never rewrite a branch other people use. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
@@ -144,7 +144,7 @@ Developers never push to `main`. Everything goes through a pull request (PR) wit
 
 - **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (50% minimum for now, we will raise it as the code grows), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
 - CI jobs: `Check` (format, lint, types, tests, build), `PR title` (Conventional Commit; a wrong title gives a warning and a help comment, it does not block the merge), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
-- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`, `AGENTS.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
+- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`, `AGENTS.md`) are in `.github/CODEOWNERS`; only the project lead (Jan) can approve changes to them.
 - Docker: only `backend/Dockerfile`, `frontend/Dockerfile` and `docker-compose.yml` define images and the local stack. Images build from the repo root with `npm ci`, run as non-root, contain no dev dependencies or secrets, and keep their `HEALTHCHECK`. Compose waits for healthy dependencies.
 - `GET /api/health` returns 200 `{status:"ok",db:"up"}`, or 503 when MongoDB is down. Keep it working.
 
@@ -184,6 +184,6 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
   | **Maintain** | `maintainers` team | Yes (`Protect main` bypass)           | No (`main-integrity` is Admin-only)                  |
   | **Write**    | `developers` team  | No: PR, one approval, green CI        | No                                                   |
 
-  To make someone a maintainer, move them from the `developers` to the `maintainers` team (organisation → Teams). The team is a code owner, so its members can approve protected files. That is all: they can then push to `main`, approve protected files and publish releases.
+  To make someone a maintainer, move them from the `developers` to the `maintainers` team (organisation → Teams). Members can then approve and merge normal PRs and publish releases. They cannot approve the protected files in `.github/CODEOWNERS` (CI, Docker, AI rules): those need the project lead.
 
 - Secrets: never commit `.env`, keys or credentials. Bugs: use the bug report issue template and link the requirement or user story.

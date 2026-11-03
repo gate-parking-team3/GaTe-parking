@@ -58,7 +58,7 @@ Stack: React + TypeScript (Vite) frontend, Node.js + Express + TypeScript backen
 
 ## CI and Docker integrity
 
-Never make CI pass by weakening it. Do not skip, delete or loosen tests, add `eslint-disable` / `@ts-ignore` / `continue-on-error`, lower coverage thresholds, or edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the user's task is about them (these need maintainer approval, see `.github/CODEOWNERS`). If a check fails, fix the cause or explain it to the user. Keep every Docker `HEALTHCHECK` and the `/api/health` endpoint working.
+Never make CI pass by weakening it. Do not skip, delete or loosen tests, add `eslint-disable` / `@ts-ignore` / `continue-on-error`, lower coverage thresholds, or edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the user's task is about them (these need the project lead's approval, see `.github/CODEOWNERS`). If a check fails, fix the cause or explain it to the user. Keep every Docker `HEALTHCHECK` and the `/api/health` endpoint working.
 
 ## Quality
 
