@@ -26,7 +26,7 @@ feat(vehicles): add plate validation
 - The description starts with a lower-case word, is imperative, has no full stop, and the whole line is at most 72 characters.
 - Names and acronyms later in the line are fine (`add JWT login`).
 - Nothing may follow the line: no body and no AI attribution (`Co-Authored-By`, session links). The same goes for PR descriptions.
-- The PR title follows the same format, because squash merging uses it as the commit on `main`. CI checks the PR title and the `.githooks/commit-msg` hook checks each commit locally; both only warn, so get it right yourself.
+- The PR title follows the same format, because a squash merge (the default) uses it as the commit on `main`. CI checks the PR title and the `.githooks/commit-msg` hook checks each commit locally; both only warn, so get it right yourself.
 
 ## Everyday git steps
 
@@ -58,7 +58,7 @@ Stack: React + TypeScript (Vite) frontend, Node.js + Express + TypeScript backen
 
 ## CI and Docker integrity
 
-Never make CI pass by weakening it. Do not skip, delete or loosen tests, add `eslint-disable` / `@ts-ignore` / `continue-on-error`, lower coverage thresholds, or edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the user's task is about them (these need maintainer approval, see `.github/CODEOWNERS`). If a check fails, fix the cause or explain it to the user. Keep every Docker `HEALTHCHECK` and the `/api/health` endpoint working.
+Never make CI pass by weakening it. Do not skip, delete or loosen tests, add `eslint-disable` / `@ts-ignore` / `continue-on-error`, lower coverage thresholds, or edit `.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md` or this file unless the user's task is about them (these need the project lead's approval, see `.github/CODEOWNERS`). If a check fails, fix the cause or explain it to the user. Keep every Docker `HEALTHCHECK` and the `/api/health` endpoint working.
 
 ## Quality
 

@@ -1,5 +1,5 @@
-// Bootstrap a SEPARATE administrator account. Never promote an existing personal user account.
-// Usage: npm run create-admin -w backend -- <admin-email> <name> <password> [employeeId]
+// Creates the first administrator account, or makes an existing account an active admin.
+// Usage: npm run create-admin -w backend -- <email> <name> <password>
 import { config } from "dotenv";
 import mongoose from "mongoose";
 import { fileURLToPath } from "node:url";
@@ -7,27 +7,41 @@ import { hashPassword } from "./auth/password.js";
 import { connectDb } from "./db.js";
 import { normalizeEmail } from "./users/user.js";
 import { mongoUserStore } from "./users/user.model.js";
+
 config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
-const [email, name, password, employeeId] = process.argv.slice(2);
-if (!email || !name || !password || password.length < 12 || Buffer.byteLength(password) > 72) {
-  console.error("Usage: npm run create-admin -w backend -- <email> <name> <password (12+ chars, max 72 bytes)> [existing employeeId]");
+
+const [email, name, password] = process.argv.slice(2);
+// bcrypt ignores everything after 72 bytes, so longer passwords are refused.
+if (
+  !email ||
+  !name ||
+  !password ||
+  password.length < 8 ||
+  Buffer.byteLength(password) > 72
+) {
+  console.error(
+    "Usage: npm run create-admin -w backend -- <email> <name> <password (8+ chars, max 72 bytes)>",
+  );
   process.exit(1);
 }
-await connectDb(process.env.MONGODB_URI ?? "mongodb://localhost:27017/gate-parking");
-try {
-  const existing = await mongoUserStore.findByEmail(email);
-  if (existing) {
-    console.error("Email already belongs to an account; use a different admin email. Existing accounts are not promoted.");
-    process.exitCode = 1;
-  } else {
-    const created = await mongoUserStore.create({
-      email: normalizeEmail(email), name,
-      passwordHash: await hashPassword(password),
-      role: "admin", status: "active",
-      ...(employeeId ? { employeeId } : {}),
-    });
-    console.log(`Created independent admin account ${created.email}`);
-  }
-} finally {
-  await mongoose.disconnect();
+
+await connectDb(
+  process.env.MONGODB_URI ?? "mongodb://localhost:27017/gate-parking",
+);
+const existing = await mongoUserStore.findByEmail(email);
+if (existing) {
+  await mongoUserStore.update(existing.id, { role: "admin", status: "active" });
+  console.log(
+    `${existing.email} is now an active admin (name and password unchanged)`,
+  );
+} else {
+  const created = await mongoUserStore.create({
+    email: normalizeEmail(email),
+    name,
+    passwordHash: await hashPassword(password),
+    role: "admin",
+    status: "active",
+  });
+  console.log(`Created admin ${created.email}`);
 }
+await mongoose.disconnect();

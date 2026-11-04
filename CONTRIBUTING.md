@@ -91,7 +91,7 @@ feat(reservations): add time window validation
 - No AI tools or bots as commit authors or `Co-Authored-By` lines (GitHub would list them as contributors). The team's Claude Code settings turn them off, and the `No AI attribution` check blocks PRs that still have them. Dependabot is allowed.
 - Dependabot's `chore(deps): ...` commits are exempt.
 
-The `commit-msg` hook checks the message on your computer when you commit: if it is wrong, you get a warning showing the right format, but the commit is still made, because branch commit messages never reach `main`. `/save` writes a valid message for you. What matters is the PR title, because squash merging turns it into the single commit on `main`.
+The `commit-msg` hook checks the message on your computer when you commit: if it is wrong, you get a warning showing the right format, but the commit is still made, because branch commit messages never reach `main`. `/save` writes a valid message for you. What matters is the PR title, because a squash merge (the default) turns it into the single commit on `main`. If a PR is merged with a merge commit or rebase instead, every commit lands on `main`, so keep the messages valid.
 
 ## 3b. Without Claude Code (plain git)
 
@@ -121,11 +121,11 @@ gh pr create --title "feat(vehicles): add plate validation"
 
 ## 4. Pull requests
 
-Developers never push to `main`. Everything goes through a pull request (PR) with a review, green CI and a squash merge. GitHub enforces this through the rulesets in `.github/rulesets/` (see [roles](#8-maintainer-setup-once-in-github-settings)). Maintainers may push to `main` directly, but should still use PRs for anything that deserves a second pair of eyes.
+Developers never push to `main`. Everything goes through a pull request (PR) with a review, green CI and, by default, a squash merge. GitHub enforces this through the rulesets in `.github/rulesets/` (see [roles](#8-maintainer-setup-once-in-github-settings)). Maintainers may push to `main` directly, but should still use PRs for anything that deserves a second pair of eyes.
 
 **Opening (`/ship` does it):**
 
-- Title is a Conventional Commit, e.g. `feat(reservations): add time window validation`. Squash merging makes the title the commit on `main`.
+- Title is a Conventional Commit, e.g. `feat(reservations): add time window validation`. A squash merge (the default) makes the title the commit on `main`.
 - Fill in the template: what, why (link the user story or PBS task, e.g. `US 5`), how to test, checklist.
 - One topic only, under about 1000 changed lines of code. Tests, docs and `package-lock.json` do not count. Bigger? Split it. No drive-by refactors or reformatting of other people's files.
 - Open as a draft while unfinished; mark it ready when CI is green and you reviewed your own diff. Add a screenshot for UI changes.
@@ -133,18 +133,18 @@ Developers never push to `main`. Everything goes through a pull request (PR) wit
 **Review (enforced):**
 
 - One approval from a teammate. Reviewers: if the author pushes big changes after you approved, take another look.
-- Check the PR title too: a wrong title only warns, so get it fixed before merging (the merger can also correct it in the squash merge dialog).
+- Check the PR title too: a wrong title only warns, so get it fixed before merging (the merger can also correct it in the merge dialog).
 - All review conversations must be resolved. Copilot reviews every PR and again after each push; treat its comments as a free first review and fix them or reply why not.
-- Changes to CI, Docker, tooling and Claude rules (`.github/CODEOWNERS`) also need a maintainer's approval.
+- Changes to CI, Docker, tooling and Claude rules also need the project lead's approval (Jan, see `.github/CODEOWNERS`), not just any teammate's.
 - Reviewers: read the diff, run the branch if the change is non-trivial, check it against the user story. Be specific and kind. Review within one working day. Approve only what you read.
 
-**Merging (enforced):** `Check`, `PR title`, `Docker build` and `Smoke test` green (fix any PR title warning before merging) and squash merge only. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
+**Merging (enforced):** `Check`, `PR title`, `Docker build` and `Smoke test` green (fix any PR title warning before merging). Use **squash merge** unless there is a reason to keep the individual commits; merge commits and rebase are allowed too, but never rewrite a branch other people use. If GitHub says your branch conflicts with `main`, run `/sync`. The author merges their own approved PR. Never merge a red or conflicted PR and never bypass the rules, not even for a tiny fix.
 
 ## 5. CI and Docker
 
 - **Never weaken the checks to get a PR through.** No skipped or deleted tests, no `eslint-disable` / `@ts-ignore` to hide real problems, no lowered coverage thresholds (50% minimum for now, we will raise it as the code grows), no `continue-on-error`, no editing workflows to bypass a failure. Fix the cause.
 - CI jobs: `Check` (format, lint, types, tests, build), `PR title` (Conventional Commit; a wrong title gives a warning and a help comment, it does not block the merge), `Docker build`, `Smoke test` (the full stack starts and `/api/health` answers). `npm audit` and CodeQL run too.
-- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`, `AGENTS.md`) are in `.github/CODEOWNERS`; a maintainer must approve changes to them.
+- Files that control CI, Docker, tooling and Claude rules (`.github/`, Dockerfiles, `docker-compose.yml`, `eslint.config.js`, root `package.json`, `.claude/`, `CLAUDE.md`, `AGENTS.md`) are in `.github/CODEOWNERS`; only the project lead (Jan) can approve changes to them.
 - Docker: only `backend/Dockerfile`, `frontend/Dockerfile` and `docker-compose.yml` define images and the local stack. Images build from the repo root with `npm ci`, run as non-root, contain no dev dependencies or secrets, and keep their `HEALTHCHECK`. Compose waits for healthy dependencies.
 - `GET /api/health` returns 200 `{status:"ok",db:"up"}`, or 503 when MongoDB is down. Keep it working.
 
@@ -175,7 +175,7 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
 ## 8. Maintainer setup (once, in GitHub settings)
 
 - Settings, Rules, Rulesets: import `.github/rulesets/main-protection.json`, `main-integrity.json` and `tag-protection.json`. Enable the Copilot code review rule there.
-- Settings, General, Pull Requests: squash merging only, default message "Pull request title", auto-delete head branches.
+- Settings, General, Pull Requests: allow squash (the default choice), merge commit and rebase, default message "Pull request title", auto-delete head branches.
 - Settings, Collaborators: roles decide who can do what on `main`. Rulesets treat people by role, so keep each role to the people who need it.
 
   | GitHub role  | Who                | Push to `main` / merge without review | Force-push or delete `main`, change rules and access |
@@ -184,6 +184,6 @@ A release is a version tag on `main` plus a GitHub release and two Docker images
   | **Maintain** | `maintainers` team | Yes (`Protect main` bypass)           | No (`main-integrity` is Admin-only)                  |
   | **Write**    | `developers` team  | No: PR, one approval, green CI        | No                                                   |
 
-  To make someone a maintainer, move them from the `developers` to the `maintainers` team (organisation → Teams). The team is a code owner, so its members can approve protected files. That is all: they can then push to `main`, approve protected files and publish releases.
+  To make someone a maintainer, move them from the `developers` to the `maintainers` team (organisation → Teams). Members can then approve and merge normal PRs and publish releases. They cannot approve the protected files in `.github/CODEOWNERS` (CI, Docker, AI rules): those need the project lead.
 
 - Secrets: never commit `.env`, keys or credentials. Bugs: use the bug report issue template and link the requirement or user story.

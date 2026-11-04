@@ -36,7 +36,7 @@ administrator  ──edits/deletes──▶ Reservation
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Vehicle**         | A vehicle registered by an employee: license plate (SPZ), engine type (combustion / electric), size category (small / standard / large). Engine type determines access to chargers and pricing discounts. |
 | **ParkingSpot**     | A physical parking stall. Type: standard / disabled / EV. Status: free / reserved / occupied. Size: small / standard / large.                                                                             |
-| **Reservation**     | A booking of a spot for a vehicle and a time window. Status: active / completed / cancelled.                                                                                                              |
+| **Reservation**     | A booking of a spot for a vehicle and a time window. Status: reserved / active / completed / cancelled.                                                                                                   |
 | **ParkingSession**  | A vehicle's stay from automatic gate opening at entry until departure. Tracks real-time occupancy and duration.                                                                                           |
 | **ChargingSession** | An EV charge on an equipped spot: start/end time, energy consumed (kWh), applied discount.                                                                                                                |
 | **Notification**    | A message sent to a user about a reservation or session event.                                                                                                                                            |
@@ -49,7 +49,7 @@ administrator  ──edits/deletes──▶ Reservation
 | 1   | Display available parking spots          | Vojta          | User          |
 | 2   | History of parking records               | Matěj          | User          |
 | 3   | Start and end active parking             | Šimon          | User          |
-| 4   | Reserve a parking spot                   | Honza Hubal    | User          |
+| 4   | Reserve a parking spot                   | Jan Hubal      | User          |
 | 5   | Register vehicle                         | Andrej         | User          |
 | 6   | Deletion of reservation                  | Ludmila        | User / Admin  |
 | 7   | View active parking reservation          | Jan Heller     | User          |
@@ -79,7 +79,7 @@ User selects a registered vehicle, a lot and a time window (end after start), th
 - Electric car: EV and standard spots, with an EV-only filter.
 - Size: a vehicle fits a spot of its own size category or larger.
 
-On confirm, a Reservation with status `active` is created, the spot is marked reserved for the window and the lot's availability is updated.
+On confirm, a Reservation with status `reserved` is created, the spot is marked reserved for the window and the lot's availability is updated.
 
 ### 5. Register vehicle
 
