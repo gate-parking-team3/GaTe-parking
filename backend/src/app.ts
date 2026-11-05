@@ -10,6 +10,12 @@ import {
   loginLimiter,
   type RateLimits,
 } from "./auth/rate-limit.js";
+import {
+  activationRouter,
+  invitationInboxRouter,
+  registrationRouter,
+  type FakeMailbox,
+} from "./registration/registration.routes.js";
 import type { UserStore } from "./users/user.js";
 import { mongoUserStore } from "./users/user.model.js";
 import { createVehicleRouter } from "./vehicles/vehicle.routes.js";
@@ -42,18 +48,31 @@ export function createApp({
       .json({ status: db ? "ok" : "degraded", db: db ? "up" : "down" });
   });
 
+  // Development stand-in for sending invitation emails.
+  const mailbox: FakeMailbox = new Map();
+
   app.post("/api/auth/login", loginLimiter(rateLimits.login));
   app.use(
-    ["/api/auth", "/api/admin", "/api/vehicles"],
+    ["/api/auth", "/api/admin", "/api/vehicles", "/api/dev"],
     apiLimiter(rateLimits.api),
   );
+  app.use("/api/auth/activate", activationRouter(users));
   app.use("/api/auth", authRouter(users, jwtSecret));
   app.use(
     "/api/admin/employees",
     requireAuth(users, jwtSecret),
     requireRole("admin"),
+    registrationRouter(users, mailbox),
     employeesRouter(users),
   );
+  if (process.env.NODE_ENV !== "production") {
+    app.use(
+      "/api/dev/invitations",
+      requireAuth(users, jwtSecret),
+      requireRole("admin"),
+      invitationInboxRouter(mailbox),
+    );
+  }
   app.use(
     "/api/vehicles",
     requireAuth(users, jwtSecret),

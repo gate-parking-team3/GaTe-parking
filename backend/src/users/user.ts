@@ -1,7 +1,7 @@
 export const ROLES = ["user", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
-// pending: registered, waiting for approval; active: may sign in; disabled: access revoked.
+// pending: registered, waiting for approval or invitation activation; active: may sign in; disabled: access revoked.
 export const USER_STATUSES = ["pending", "active", "disabled"] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
@@ -12,9 +12,15 @@ export type User = {
   passwordHash: string;
   role: Role;
   status: UserStatus;
+  // Set while an activation invitation is open. Only the SHA-256 hash of the token is stored.
+  activationTokenHash?: string;
+  activationExpiresAt?: Date;
 };
 
-export type PublicUser = Omit<User, "passwordHash">;
+export type PublicUser = Pick<
+  User,
+  "id" | "email" | "name" | "role" | "status"
+>;
 
 export type UserChanges = Partial<Pick<User, "role" | "status">>;
 
@@ -27,6 +33,12 @@ export interface UserStore {
   list(): Promise<User[]>;
   update(id: string, changes: UserChanges): Promise<User | null>;
   create(user: NewUser): Promise<User>;
+  // Activates a pending account whose unexpired invitation matches, and clears the invitation.
+  activateByToken(
+    tokenHash: string,
+    passwordHash: string,
+    now: Date,
+  ): Promise<User | null>;
 }
 
 export function toPublicUser(user: User): PublicUser {

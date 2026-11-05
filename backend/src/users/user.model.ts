@@ -26,9 +26,14 @@ const userSchema = new Schema(
       default: "pending",
       required: true,
     },
+    // Never loaded by default, so they cannot end up in API responses.
+    activationTokenHash: { type: String, select: false },
+    activationExpiresAt: { type: Date, select: false },
   },
   { timestamps: true },
 );
+
+userSchema.index({ activationTokenHash: 1 }, { unique: true, sparse: true });
 
 export const UserModel = mongoose.model("User", userSchema);
 
@@ -69,5 +74,21 @@ export const mongoUserStore: UserStore = {
   },
   async create(user: NewUser) {
     return toUser(await UserModel.create(user));
+  },
+  async activateByToken(tokenHash, passwordHash, now) {
+    // One atomic update, so a token cannot be used twice in parallel requests.
+    const doc = await UserModel.findOneAndUpdate(
+      {
+        activationTokenHash: tokenHash,
+        activationExpiresAt: { $gt: now },
+        status: "pending",
+      },
+      {
+        $set: { status: "active", passwordHash },
+        $unset: { activationTokenHash: "", activationExpiresAt: "" },
+      },
+      { returnDocument: "after", runValidators: true },
+    );
+    return doc ? toUser(doc) : null;
   },
 };

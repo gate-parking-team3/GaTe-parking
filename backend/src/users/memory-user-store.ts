@@ -25,5 +25,20 @@ export function memoryUserStore(initial: User[] = []): UserStore {
       users.push(created);
       return created;
     },
+    async activateByToken(tokenHash, passwordHash, now) {
+      const user = users.find(
+        (u) =>
+          u.status === "pending" &&
+          u.activationTokenHash === tokenHash &&
+          u.activationExpiresAt !== undefined &&
+          u.activationExpiresAt > now,
+      );
+      if (!user) return null;
+      user.passwordHash = passwordHash;
+      user.status = "active";
+      delete user.activationTokenHash;
+      delete user.activationExpiresAt;
+      return user;
+    },
   };
 }
