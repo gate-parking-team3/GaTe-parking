@@ -2,6 +2,7 @@
 # Maintainers can approve everything else, but not these files.
 /.github/ @Jansyler
 /.claude/ @Jansyler
+/.agents/ @Jansyler
 /CLAUDE.md @Jansyler
 /backend/Dockerfile @Jansyler
 /frontend/Dockerfile @Jansyler

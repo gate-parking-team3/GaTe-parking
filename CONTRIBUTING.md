@@ -64,6 +64,8 @@ Frontend: http://localhost:3000. Backend health: http://localhost:8080/api/healt
 6. `/ship` pushes the branch and opens a pull request.
 7. Fix review feedback with `/save` then `/ship`. After the merge, start the next task with a fresh `/start-task`.
 
+Shortcut: `/implement-task <PBS task name>` in Claude Code (or `$implement-task <PBS task name>` in Codex) does steps 2-6 for one task. It shows you a plan first, then branches, codes, tests, runs the checks and opens the PR. You still read the result and get it reviewed.
+
 Other commands: `npm run dev` (start everything), `npm run format` (auto-format), `npm run lint:fix`, `docker compose up --build` (full stack in containers).
 
 Rules that keep us from colliding:

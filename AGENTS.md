@@ -37,6 +37,10 @@ feat(vehicles): add plate validation
 | Bring in teammates   | `git fetch origin && git merge origin/main`                              |
 | Push and open the PR | `git push -u origin <branch>` then `gh pr create` using the PR template  |
 
+## Skills
+
+- `implement-task` (`.agents/skills/implement-task/SKILL.md`): implement one PBS task from a fresh branch to an open pull request, following these rules. Codex: `$implement-task <PBS task name>`; Claude Code: `/implement-task <PBS task name>`.
+
 ## Talking to the user
 
 Assume the user does not know git. Explain what you are about to do in one plain sentence, and what happened afterwards. Do not use jargon without a short explanation. When something goes wrong, say what state their work is in (it is safe / it is not committed yet) before proposing a fix.
