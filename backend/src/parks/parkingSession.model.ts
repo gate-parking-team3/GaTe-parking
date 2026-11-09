@@ -1,4 +1,4 @@
-import mongoose, { type InferSchemaType } from "mongoose";
+import mongoose, { type InferSchemaType, type Model } from "mongoose";
 
 const parkingSessionSchema = new mongoose.Schema(
   {
@@ -7,13 +7,8 @@ const parkingSessionSchema = new mongoose.Schema(
     reservationId: { type: String, required: false },
     entryTime: { type: Date, required: true },
     exitTime: { type: Date, required: false },
-    // Payment fields
-    amountDue: { type: Number, default: 0 },
-    paid: { type: Boolean, default: false },
-    paymentMethod: { type: String, enum: ["card", "cash", "mobile"] },
-    transactionId: { type: String },
   },
-  { timestamps: true },
+  { timestamps: true, versionKey: false },
 );
 
 // Index for finding active sessions
@@ -25,7 +20,10 @@ export type ParkingSessionSchemaFields = InferSchemaType<
   typeof parkingSessionSchema
 >;
 
-export const ParkingSessionModel = mongoose.model(
-  "ParkingSession",
-  parkingSessionSchema,
-);
+export const ParkingSessionModel: Model<ParkingSessionSchemaFields> =
+  (mongoose.models.ParkingSession as
+    Model<ParkingSessionSchemaFields> | undefined) ??
+  mongoose.model<ParkingSessionSchemaFields>(
+    "ParkingSession",
+    parkingSessionSchema,
+  );

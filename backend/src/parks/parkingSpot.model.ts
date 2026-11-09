@@ -1,4 +1,4 @@
-import mongoose, { type InferSchemaType } from "mongoose";
+import mongoose, { type InferSchemaType, type Model } from "mongoose";
 import {
   PARKING_SPOT_SIZES,
   PARKING_SPOT_STATUSES,
@@ -26,14 +26,13 @@ const parkingSpotSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true, versionKey: false },
 );
 
 parkingSpotSchema.index({ lotId: 1, spotNumber: 1 }, { unique: true });
 
 export type ParkingSpotSchemaFields = InferSchemaType<typeof parkingSpotSchema>;
 
-export const ParkingSpotModel = mongoose.model(
-  "ParkingSpot",
-  parkingSpotSchema,
-);
+export const ParkingSpotModel: Model<ParkingSpotSchemaFields> =
+  (mongoose.models.ParkingSpot as Model<ParkingSpotSchemaFields> | undefined) ??
+  mongoose.model<ParkingSpotSchemaFields>("ParkingSpot", parkingSpotSchema);

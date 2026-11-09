@@ -1,4 +1,4 @@
-import mongoose, { type InferSchemaType } from "mongoose";
+import mongoose, { type InferSchemaType, type Model } from "mongoose";
 
 const parkingLotSchema = new mongoose.Schema(
   {
@@ -8,9 +8,11 @@ const parkingLotSchema = new mongoose.Schema(
     evCapacity: { type: Number, required: true, min: 0 },
     disabledCapacity: { type: Number, required: true, min: 0 },
   },
-  { timestamps: true },
+  { timestamps: true, versionKey: false },
 );
 
 export type ParkingLotSchemaFields = InferSchemaType<typeof parkingLotSchema>;
 
-export const ParkingLotModel = mongoose.model("ParkingLot", parkingLotSchema);
+export const ParkingLotModel: Model<ParkingLotSchemaFields> =
+  (mongoose.models.ParkingLot as Model<ParkingLotSchemaFields> | undefined) ??
+  mongoose.model<ParkingLotSchemaFields>("ParkingLot", parkingLotSchema);

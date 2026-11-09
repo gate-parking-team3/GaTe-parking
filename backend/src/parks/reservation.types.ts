@@ -17,16 +17,9 @@ export type ReservationRecord = {
   status: ReservationStatus;
   startTime: Date;
   endTime: Date;
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 // Fields for creating/updating a reservation
-export type ReservationFields = Omit<
-  ReservationRecord,
-  "id" | "status" | "createdAt" | "updatedAt"
-> & {
+export type ReservationFields = Omit<ReservationRecord, "id" | "status"> & {
   status?: ReservationStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
 };
