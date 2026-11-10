@@ -23,6 +23,7 @@ import {
 } from "./reservations/reservation.routes.js";
 import { mongoUserStore } from "./users/user.model.js";
 import { createVehicleRouter } from "./vehicles/vehicle.routes.js";
+import { mongoVehicleUsage } from "./vehicles/vehicle.usage.js";
 
 type AppOptions = {
   dbReady?: () => boolean;
@@ -87,7 +88,7 @@ export function createApp({
   app.use(
     "/api/vehicles",
     requireAuth(users, jwtSecret),
-    createVehicleRouter(),
+    createVehicleRouter({ usage: mongoVehicleUsage(users) }),
   );
   app.use("/api/lots", requireAuth(users, jwtSecret), createLotRouter());
   app.use(
