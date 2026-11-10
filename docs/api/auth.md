@@ -91,3 +91,33 @@ npm run create-admin -w backend -- hynek@gate.cz "Hynek" "a-strong-password"
 ```
 
 The password needs at least 8 characters and at most 72 bytes (bcrypt ignores anything longer). Running it again for an existing email makes that account an active admin; its name and password stay unchanged.
+
+## Employee invitations and activation
+
+Invitation links expire after 24 hours and can be used once.
+
+### `POST /api/admin/employees`
+
+Admins only (401 when not signed in, 403 for non-admins). Send either a `name` or both `firstName` and `lastName`, plus an email:
+
+```json
+{ "firstName": "Jana", "lastName": "Nova", "email": "jana@gate.cz" }
+```
+
+Names must be 2–150 characters after trimming. The email must be valid and at most 254 characters; it is trimmed and lower-cased. On success, returns 201 with `{ "employee": User }`. Returns 400 with `{ "error": "Valid name and email are required" }` for invalid input, or 409 with `{ "error": "Email already registered" }` when the email is already in use.
+
+The API does not send invitation emails yet. In non-production environments, an admin can retrieve the invitation from the development-only inbox.
+
+### `POST /api/auth/activate`
+
+Public endpoint. Activate an account with the 64-character hexadecimal invitation token and choose a password:
+
+```json
+{ "token": "<invitation-token>", "password": "a-strong-password" }
+```
+
+The password must meet the length limits described under [First admin](#first-admin). Returns `{ "user": User }` on success. Returns 400 with `{ "error": "Invalid token or password (8+ characters, max 72 bytes)" }` for invalid input, or `{ "error": "Activation link is invalid, expired or already used" }` when the invitation cannot be used.
+
+### `GET /api/dev/invitations/:email`
+
+Development only; this endpoint is not mounted in production. Requires an admin bearer token. Returns `{ "activationUrl": "...", "expiresAt": "..." }`, or 404 with `{ "error": "Invitation not found" }` if there is no invitation in the in-memory development inbox. Use the token from the activation URL in the `POST /api/auth/activate` request.
