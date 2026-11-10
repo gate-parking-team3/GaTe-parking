@@ -105,7 +105,10 @@ describe("VehicleList", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(
-      screen.getByRole("heading", { name: "My vehicles" }),
+      screen.getByRole("button", { name: "Edit 1AB2345" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Edit vehicle" }),
+    ).not.toBeInTheDocument();
   });
 });
