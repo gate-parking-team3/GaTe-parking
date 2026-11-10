@@ -2,7 +2,7 @@
   "info": {
     "name": "GaTe Parking API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run the requests top to bottom. 'Login' stores the token, and every other request uses it automatically. Set email/password in the collection Variables tab."
+    "description": "Run the requests top to bottom (Collection Runner or `npx newman run`). 'Login' stores the token and every other request uses it. Needs the sample data: `npm run seed -w backend`. Defaults sign in as the seeded user Anna and the seeded admin Eva (password gate-parking-dev)."
   },
   "auth": {
     "type": "bearer",
@@ -21,11 +21,11 @@
     },
     {
       "key": "email",
-      "value": "you@test.cz"
+      "value": "anna.novak@example.com"
     },
     {
       "key": "password",
-      "value": "password123"
+      "value": "gate-parking-dev"
     },
     {
       "key": "token",
@@ -38,289 +38,1328 @@
     {
       "key": "plate",
       "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": "eva.prochazka@example.com"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "seededVehicleId",
+      "value": ""
+    },
+    {
+      "key": "lotId",
+      "value": ""
+    },
+    {
+      "key": "spotId",
+      "value": ""
+    },
+    {
+      "key": "reservationId",
+      "value": ""
+    },
+    {
+      "key": "nowReservationId",
+      "value": ""
+    },
+    {
+      "key": "employeeId",
+      "value": ""
+    },
+    {
+      "key": "employeeEmail",
+      "value": ""
+    },
+    {
+      "key": "inviteToken",
+      "value": ""
+    },
+    {
+      "key": "futureStart",
+      "value": ""
+    },
+    {
+      "key": "futureEnd",
+      "value": ""
+    },
+    {
+      "key": "futureEndLater",
+      "value": ""
+    },
+    {
+      "key": "nowStart",
+      "value": ""
+    },
+    {
+      "key": "nowEnd",
+      "value": ""
     }
   ],
   "item": [
     {
-      "name": "1. Health check",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
-        },
-        "description": "Backend and database status.",
-        "auth": {
-          "type": "noauth"
-        }
-      },
-      "event": [
+      "name": "Week 6: auth, vehicles, employee access",
+      "description": "Health, login, vehicle CRUD and admin employee management. Login and Admin login store the tokens the Week 7 folder needs.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "2. Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/auth/login",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "login"]
-        },
-        "description": "Signs in and saves the JWT token into the collection variable 'token'.",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "1. Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Backend and database status.",
+            "auth": {
+              "type": "noauth"
             }
-          }
-        },
-        "auth": {
-          "type": "noauth"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));",
-              "const data = pm.response.json();",
-              "if (data.token) pm.collectionVariables.set('token', data.token);"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "3. Who am I",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/auth/me",
-          "host": ["{{baseUrl}}"],
-          "path": ["auth", "me"]
-        },
-        "description": "Returns the signed-in user."
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "4. Create vehicle",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles"]
-        },
-        "description": "Creates a vehicle. A random plate is generated each time so it never clashes (409).",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"licensePlate\": \"{{plate}}\",\n  \"brand\": \"Skoda\",\n  \"model\": \"Octavia\",\n  \"engineType\": \"electric\",\n  \"size\": \"standard\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 201', () => pm.response.to.have.status(201));",
-              "const data = pm.response.json();",
-              "if (data.id) pm.collectionVariables.set('vehicleId', data.id);"
-            ]
-          }
+          ]
         },
         {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const n = Math.floor(1000 + Math.random() * 9000);",
-              "pm.collectionVariables.set('plate', '1AB' + n);"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "5. List my vehicles",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles"]
-        },
-        "description": ""
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "6. Get one vehicle",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles", "{{vehicleId}}"]
-        },
-        "description": ""
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "7. Update vehicle (PATCH)",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles", "{{vehicleId}}"]
-        },
-        "description": "",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"model\": \"Superb\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "2. Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Signs in and saves the JWT token into the collection variable 'token'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
             }
-          }
-        }
-      },
-      "event": [
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ]
+        },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));"
-            ]
-          }
+          "name": "3. Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the signed-in user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Create vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"]
+            },
+            "description": "Creates a vehicle. A random plate is generated each time so it never clashes (409).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"{{plate}}\",\n  \"brand\": \"Skoda\",\n  \"model\": \"Octavia\",\n  \"engineType\": \"electric\",\n  \"size\": \"standard\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.collectionVariables.set('vehicleId', body.id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Math.floor(1000 + Math.random() * 9000);",
+                  "pm.collectionVariables.set('plate', '1AB' + n);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. List my vehicles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Get one vehicle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Update vehicle (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Superb\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Delete vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Without token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"]
+            },
+            "description": "Shows the API refuses requests that are not signed in.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Admin login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.expect(d.user.role).to.eql('admin');",
+                  "pm.collectionVariables.set('adminToken', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Employees as a normal user (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "employees"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. List employees (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "employees"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().employees.length).to.be.above(0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Register an employee (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "employees"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester\",\n  \"email\": \"postman-{{$timestamp}}@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const e = pm.response.json().employee;",
+                  "pm.expect(e.status).to.eql('pending');",
+                  "pm.collectionVariables.set('employeeId', e.id);",
+                  "pm.collectionVariables.set('employeeEmail', e.email);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14. Read the invitation (dev inbox)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dev/invitations/{{employeeEmail}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["dev", "invitations", "{{employeeEmail}}"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('inviteToken', pm.response.json().activationUrl.split('token=')[1]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15. Activate the account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "activate"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{inviteToken}}\",\n  \"password\": \"gate-parking-dev\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16. Get employee (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/employees/{{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "employees", "{{employeeId}}"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17. Disable the employee (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/employees/{{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "employees", "{{employeeId}}"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"disabled\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().employee.status).to.eql('disabled');"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "8. Delete vehicle",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles", "{{vehicleId}}"]
-        },
-        "description": ""
-      },
-      "event": [
+      "name": "Week 7: parking lots and reservations",
+      "description": "US 4 reserve a spot, US 11 edit, US 3 start and end parking, plus the vehicle deletion guard. Logs in by itself, so this folder can be run alone. Needs the sample data (npm run seed -w backend).",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 204', () => pm.response.to.have.status(204));"
-            ]
-          }
+          "name": "18. Login (Anna, so this folder runs on its own)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Signs in and saves the JWT token into the collection variable 'token'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// New booking window on every run, so a re-run never clashes with the previous run's booking.",
+                  "const day = 1 + Math.floor(Math.random() * 300);",
+                  "const hour = 6 + Math.floor(Math.random() * 12);",
+                  "const s = new Date(Date.now() + day * 864e5); s.setUTCHours(hour, 0, 0, 0);",
+                  "pm.collectionVariables.set('futureStart', s.toISOString());",
+                  "pm.collectionVariables.set('futureEnd', new Date(s.getTime() + 2 * 36e5).toISOString());",
+                  "pm.collectionVariables.set('futureEndLater', new Date(s.getTime() + 3 * 36e5).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19. Admin login (so this folder runs on its own)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.expect(d.user.role).to.eql('admin');",
+                  "pm.collectionVariables.set('adminToken', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20. List my vehicles (pick seeded car)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"]
+            },
+            "description": "Picks Anna's seeded Skoda Superb (large, combustion) for the reservation requests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const car = pm.response.json().find(v => v.licensePlate === '6AG1234');",
+                  "pm.test('Seeded car found (run npm run seed -w backend)', () => pm.expect(car).to.exist);",
+                  "pm.collectionVariables.set('seededVehicleId', car.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21. List parking lots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const lots = pm.response.json();",
+                  "pm.test('Has lots', () => pm.expect(lots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('lotId', lots.find(l => l.name === 'Main lot').id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22. Available spots (future window)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{futureStart}}&end={{futureEnd}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{futureStart}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{futureEnd}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json().spots;",
+                  "pm.test('Offers at least one spot', () => pm.expect(spots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('spotId', spots[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23. Available spots: bad window (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{futureEnd}}&end={{futureStart}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{futureEnd}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{futureStart}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24. Reserve a spot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{futureStart}}\",\n  \"endTime\": \"{{futureEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.expect(r.status).to.eql('reserved');",
+                  "pm.collectionVariables.set('reservationId', r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25. Reserve the same spot again (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{futureStart}}\",\n  \"endTime\": \"{{futureEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26. Delete a car with an upcoming reservation (expect 409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{seededVehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{seededVehicleId}}"]
+            },
+            "description": "The vehicle deletion guard: a car with an upcoming or active reservation cannot be removed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27. My reservations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "mine"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains the new reservation', () => pm.expect(pm.response.json().some(r => r.id === pm.collectionVariables.get('reservationId'))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28. Get one reservation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29. Edit reservation (longer window)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endTime\": \"{{futureEndLater}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().endTime).to.eql(pm.collectionVariables.get('futureEndLater'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30. Start parking too early (expect 422)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}", "start"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31. Available spots (now)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{nowStart}}&end={{nowEnd}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{nowStart}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{nowEnd}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json().spots;",
+                  "pm.test('Offers at least one spot', () => pm.expect(spots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('spotId', spots[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32. Reserve a spot for now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{nowStart}}\",\n  \"endTime\": \"{{nowEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('nowReservationId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33. Start parking (check in)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}", "start"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().reservation.status).to.eql('active');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34. End parking (check out)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}", "end"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().reservation.status).to.eql('completed');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35. Reservation without token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "mine"]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "36. Admin views a user's reservation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
-    },
+    }
+  ],
+  "event": [
     {
-      "name": "9. Without token (expect 401)",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/vehicles",
-          "host": ["{{baseUrl}}"],
-          "path": ["vehicles"]
-        },
-        "description": "Shows the API refuses requests that are not signed in.",
-        "auth": {
-          "type": "noauth"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 401', () => pm.response.to.have.status(401));"
-            ]
-          }
-        }
-      ]
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.collectionVariables.set('nowStart', new Date().toISOString());",
+          "pm.collectionVariables.set('nowEnd', new Date(Date.now() + 36e5).toISOString());"
+        ]
+      }
     }
   ]
 }
