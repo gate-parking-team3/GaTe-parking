@@ -9,6 +9,7 @@ const parkingLotSchema = new mongoose.Schema(
       required: true,
       min: 0,
       validate: {
+        // EV and disabled spots are part of the total, so together they cannot exceed it.
         validator: function (this: unknown, total: number) {
           if (!(this instanceof mongoose.Document)) return true;
           const ev = Number(this.get("evCapacity") ?? 0);

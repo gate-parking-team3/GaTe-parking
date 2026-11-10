@@ -17,8 +17,13 @@ import {
   type FakeMailbox,
 } from "./registration/registration.routes.js";
 import type { UserStore } from "./users/user.js";
+import {
+  createLotRouter,
+  createReservationRouter,
+} from "./reservations/reservation.routes.js";
 import { mongoUserStore } from "./users/user.model.js";
 import { createVehicleRouter } from "./vehicles/vehicle.routes.js";
+import { mongoVehicleUsage } from "./vehicles/vehicle.usage.js";
 
 type AppOptions = {
   dbReady?: () => boolean;
@@ -53,7 +58,14 @@ export function createApp({
 
   app.post("/api/auth/login", loginLimiter(rateLimits.login));
   app.use(
-    ["/api/auth", "/api/admin", "/api/vehicles", "/api/dev"],
+    [
+      "/api/auth",
+      "/api/admin",
+      "/api/vehicles",
+      "/api/lots",
+      "/api/reservations",
+      "/api/dev",
+    ],
     apiLimiter(rateLimits.api),
   );
   app.use("/api/auth/activate", activationRouter(users));
@@ -76,7 +88,13 @@ export function createApp({
   app.use(
     "/api/vehicles",
     requireAuth(users, jwtSecret),
-    createVehicleRouter(),
+    createVehicleRouter({ usage: mongoVehicleUsage(users) }),
+  );
+  app.use("/api/lots", requireAuth(users, jwtSecret), createLotRouter());
+  app.use(
+    "/api/reservations",
+    requireAuth(users, jwtSecret),
+    createReservationRouter(),
   );
 
   app.use(jsonErrors);

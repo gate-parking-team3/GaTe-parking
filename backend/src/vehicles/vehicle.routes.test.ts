@@ -8,6 +8,7 @@ import {
 } from "./vehicle.repository.js";
 import type { VehicleRecord } from "./vehicle.types.js";
 import { createVehicleRouter } from "./vehicle.routes.js";
+import type { VehicleUsage } from "./vehicle.usage.js";
 
 const owner = "U001";
 
@@ -60,7 +61,33 @@ function asUser(userId: string): RequestHandler {
   };
 }
 
-function appFor(vehicles: VehicleRepository, userId?: string) {
+// Stands in for reservations, parking sessions and owners.
+// inUse: vehicle ids with an upcoming or active reservation. inactiveOwners: user ids that are not active.
+function fakeUsage(
+  vehicles: VehicleRepository,
+  { inUse = new Set<string>(), inactiveOwners = new Set<string>() } = {},
+): VehicleUsage {
+  return {
+    async isInUse(vehicleId) {
+      return inUse.has(vehicleId);
+    },
+    async releasePlate(plate) {
+      for (const userId of inactiveOwners) {
+        const stale = (await vehicles.listByOwner(userId)).find(
+          (v) => v.licensePlate === plate && !inUse.has(v.id),
+        );
+        if (stale) return vehicles.deleteById(stale.id);
+      }
+      return false;
+    },
+  };
+}
+
+function appFor(
+  vehicles: VehicleRepository,
+  userId?: string,
+  usage: VehicleUsage = fakeUsage(vehicles),
+) {
   const app = express();
   app.use(express.json());
   app.use(
@@ -68,6 +95,7 @@ function appFor(vehicles: VehicleRepository, userId?: string) {
     createVehicleRouter({
       vehicles,
       requireOwner: userId === undefined ? requireVehicleOwner : asUser(userId),
+      usage,
     }),
   );
   return app;
@@ -171,6 +199,76 @@ describe("vehicle routes", () => {
 
     expect(res.status).toBe(204);
     expect(await vehicles.findById(created.body.id)).toBeNull();
+  });
+
+  it("refuses to remove a vehicle with an upcoming or active reservation", async () => {
+    const vehicles = memoryVehicles();
+    const created = await vehicles.create({ ...createBody, userId: owner });
+    const usage = fakeUsage(vehicles, { inUse: new Set([created.id]) });
+
+    const res = await request(appFor(vehicles, owner, usage)).delete(
+      `/api/vehicles/${created.id}`,
+    );
+
+    expect(res.status).toBe(409);
+    expect(await vehicles.findById(created.id)).not.toBeNull();
+  });
+
+  it("frees the plate of an inactive user's vehicle for a new registration", async () => {
+    const vehicles = memoryVehicles();
+    const stale = await vehicles.create({
+      ...createBody,
+      licensePlate: "1AB2345",
+      userId: "U-DISABLED",
+    });
+    const usage = fakeUsage(vehicles, {
+      inactiveOwners: new Set(["U-DISABLED"]),
+    });
+
+    const res = await request(appFor(vehicles, owner, usage))
+      .post("/api/vehicles")
+      .send(createBody);
+
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBe(owner);
+    expect(await vehicles.findById(stale.id)).toBeNull();
+  });
+
+  it("keeps the plate of an inactive user's vehicle that is still in use", async () => {
+    const vehicles = memoryVehicles();
+    const stale = await vehicles.create({
+      ...createBody,
+      licensePlate: "1AB2345",
+      userId: "U-DISABLED",
+    });
+    const usage = fakeUsage(vehicles, {
+      inUse: new Set([stale.id]),
+      inactiveOwners: new Set(["U-DISABLED"]),
+    });
+
+    const res = await request(appFor(vehicles, owner, usage))
+      .post("/api/vehicles")
+      .send(createBody);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("marks electric cars with EV charging privileges", async () => {
+    const vehicles = memoryVehicles();
+    const app = appFor(vehicles, owner);
+    const combustion = await request(app)
+      .post("/api/vehicles")
+      .send(createBody);
+    const electric = await request(app)
+      .post("/api/vehicles")
+      .send({ ...createBody, licensePlate: "2EV1234", engineType: "electric" });
+
+    expect(combustion.body.evCharging).toBe(false);
+    expect(electric.body.evCharging).toBe(true);
+    const listed = await request(app).get("/api/vehicles");
+    expect(
+      listed.body.map((v: { evCharging: boolean }) => v.evCharging),
+    ).toEqual([false, true]);
   });
 
   it("refuses an update of another user's vehicle", async () => {

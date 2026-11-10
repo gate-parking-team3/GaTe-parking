@@ -10,18 +10,20 @@ Employee vehicles. MongoDB stores `_id`; the API returns `id`.
   "model": "Octavia",
   "engineType": "combustion",
   "size": "standard",
-  "userId": "6908abc12345678901234568"
+  "userId": "6908abc12345678901234568",
+  "evCharging": false
 }
 ```
 
-| Field          | Rule                                                                                                                                                        |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `licensePlate` | Required. Spaces and hyphens are removed, letters are upper-cased, 2-12 letters or digits remain. Unique (enforced by a unique index; a clash gives `409`). |
-| `brand`        | Required non-empty text.                                                                                                                                    |
-| `model`        | Required non-empty text.                                                                                                                                    |
-| `engineType`   | `combustion` or `electric`, from the README and `AGENTS.md`.                                                                                                |
-| `size`         | `small`, `standard`, or `large`.                                                                                                                            |
-| `userId`       | Owner. Taken from the authenticated user, never from the request body.                                                                                      |
+| Field          | Rule                                                                                                                                                                                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `licensePlate` | Required. Spaces and hyphens are removed, letters are upper-cased, 2-12 letters or digits remain. Unique across active users: a clash with an active user's vehicle gives `409`. A vehicle of a disabled or pending user gives up its plate when someone registers it, unless it still has an upcoming or active reservation or is parked. |
+| `brand`        | Required non-empty text.                                                                                                                                                                                                                                                                                                                   |
+| `model`        | Required non-empty text.                                                                                                                                                                                                                                                                                                                   |
+| `engineType`   | `combustion` or `electric`, from the README and `AGENTS.md`.                                                                                                                                                                                                                                                                               |
+| `size`         | `small`, `standard`, or `large`.                                                                                                                                                                                                                                                                                                           |
+| `userId`       | Owner. Taken from the authenticated user, never from the request body.                                                                                                                                                                                                                                                                     |
+| `evCharging`   | Read-only, in responses only. `true` for electric cars: they get EV charging privileges (EV spots, see `reservations.md`).                                                                                                                                                                                                                 |
 
 Plate checks call `validateLicensePlate`, `normalizeLicensePlate`, and `isLicensePlateUnique` in `backend/src/vehicles/vehicle.validation.ts`.
 
@@ -57,6 +59,4 @@ Updates the caller's vehicle. The body may include any of `licensePlate`, `brand
 
 ### `DELETE /api/vehicles/:id`
 
-Permanently removes the caller's vehicle. `204` on success. `400` invalid id, `403` another user's vehicle, `404` missing vehicle.
-
-No reservation or parking-session model exists, so deletion does not check them. No soft-delete rule is documented.
+Permanently removes the caller's vehicle. `204` on success. `400` invalid id, `403` another user's vehicle, `404` missing vehicle, `409` when the vehicle has a `reserved` reservation that has not ended, an `active` reservation, or an open parking session. Cancel or finish those first.
