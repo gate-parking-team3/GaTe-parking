@@ -67,9 +67,7 @@ export default function VehicleList() {
   }
 
   return (
-    <section>
-      <h2>My vehicles</h2>
-
+    <section aria-label="Vehicles">
       {error ? (
         <div role="alert">
           <p>{error}</p>
