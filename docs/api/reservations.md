@@ -1,6 +1,6 @@
-# Parking lots and reservations (US 4)
+# Parking lots and reservations (US 4, US 3)
 
-Booking a parking spot for a vehicle and a time window. MongoDB stores `_id`; the API returns `id`.
+Booking a parking spot for a vehicle and a time window (US 4), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
 
 ```json
 {
@@ -63,6 +63,45 @@ The caller's reservations in every status, latest `startTime` first: `200` and a
 ### `GET /api/reservations/:id`
 
 One reservation, for its owner or an admin: `200`. `400` malformed id, `403` someone else's, `404` not found.
+
+### `POST /api/reservations/:id/start` (US 3)
+
+Check-in ("Start Parking"). No body. Only the reservation's owner can call it (admins too get `403`), only while the reservation is `reserved` and only inside its window (`startTime <= now < endTime`). Sets the reservation to `active` and opens a parking session with `entryTime` = now.
+
+- `200` `{ reservation, session }`:
+
+```json
+{
+  "reservation": {
+    "id": "6911c0ffee0000000000abcd",
+    "status": "active",
+    "...": "..."
+  },
+  "session": {
+    "id": "6911d00d0000000000000001",
+    "spotId": "6911aaaa0000000000000001",
+    "vehicleId": "6908abc12345678901234567",
+    "reservationId": "6911c0ffee0000000000abcd",
+    "entryTime": "2026-11-10T09:02:13.000Z",
+    "exitTime": null
+  }
+}
+```
+
+- `400` malformed id, `403` someone else's reservation, `404` not found.
+- `409` the reservation is not `reserved` (already started, completed or cancelled, also when two starts race), or the spot or the vehicle still has an open parking session (for example the previous driver has not left yet).
+- `422` outside the reservation window.
+
+### `POST /api/reservations/:id/end` (US 3)
+
+Check-out ("End Parking"). No body. Owner only, and only while the reservation is `active`; ending after `endTime` is allowed. Sets the reservation to `completed` and the session's `exitTime` to now.
+
+- `200` `{ reservation, session }` with `status: "completed"` and `exitTime` set.
+- `400`, `403`, `404` as for start. `409` the reservation is not `active`.
+
+### Parking and spot status
+
+The reservation keeps its booked `startTime`/`endTime`; the real arrival and departure are the session's `entryTime`/`exitTime`. The spot's `status` field is not written. A spot is occupied while it has an open session (`exitTime` null), which blocks it in availability and booking, also when the driver stays past `endTime`. After the end, the completed reservation no longer blocks the spot, so the rest of the window is free again. The database allows one open session per spot and per vehicle.
 
 ## Sample data
 

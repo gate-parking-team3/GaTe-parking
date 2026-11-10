@@ -18,6 +18,30 @@ export type ParkingLotRecord = {
 
 export type NewReservation = Omit<ReservationRecord, "id" | "status">;
 
+export type ParkingSessionRecord = {
+  id: string;
+  spotId: string;
+  vehicleId: string;
+  reservationId: string;
+  entryTime: Date;
+  exitTime: Date | null;
+};
+
+/** US 3: the reservation after a start or end, with its parking session. */
+export type ParkingResult = {
+  reservation: ReservationRecord;
+  session: ParkingSessionRecord;
+};
+
+/**
+ * Why a start or end was refused: the reservation is no longer in the expected status
+ * (e.g. a double click), or the spot or vehicle already has an open session.
+ */
+export type ParkingConflict = "wrong-status" | "already-parked";
+
+export type ParkingOutcome =
+  { ok: true; value: ParkingResult } | { ok: false; conflict: ParkingConflict };
+
 // Storage boundary, so the routes can be tested without MongoDB
 // (see memory-reservation-store.ts).
 export interface ReservationStore {
@@ -34,6 +58,13 @@ export interface ReservationStore {
   createIfFree(input: NewReservation): Promise<ReservationRecord | null>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
+  /**
+   * US 3 check-in: `reserved` -> `active` and opens a parking session at `entryTime`.
+   * Safe when two requests race: only one of them starts the reservation.
+   */
+  startParking(id: string, entryTime: Date): Promise<ParkingOutcome>;
+  /** US 3 check-out: `active` -> `completed` and closes the open session at `exitTime`. */
+  endParking(id: string, exitTime: Date): Promise<ParkingOutcome>;
 }
 
 const overlapping = ({ start, end }: TimeWindow) => ({
@@ -124,6 +155,64 @@ export const mongoReservationStore: ReservationStore = {
     const doc = await ReservationModel.findById(id).lean();
     return doc ? toReservation(doc) : null;
   },
+
+  async startParking(id, entryTime) {
+    // The status filter makes the switch atomic: of two racing requests only one matches.
+    const doc = await ReservationModel.findOneAndUpdate(
+      { _id: id, status: "reserved" },
+      { status: "active" },
+      { new: true },
+    ).lean();
+    if (!doc) return { ok: false, conflict: "wrong-status" };
+
+    try {
+      const session = await ParkingSessionModel.create({
+        spotId: doc.spotId,
+        vehicleId: doc.vehicleId,
+        reservationId: String(doc._id),
+        entryTime,
+      });
+      return {
+        ok: true,
+        value: {
+          reservation: toReservation(doc),
+          session: toSession(session.toObject()),
+        },
+      };
+    } catch (error) {
+      // The unique indexes allow one open session per spot and per vehicle.
+      await ReservationModel.updateOne(
+        { _id: doc._id, status: "active" },
+        { status: "reserved" },
+      );
+      if ((error as { code?: number }).code === 11000) {
+        return { ok: false, conflict: "already-parked" };
+      }
+      throw error;
+    }
+  },
+
+  async endParking(id, exitTime) {
+    const doc = await ReservationModel.findOneAndUpdate(
+      { _id: id, status: "active" },
+      { status: "completed" },
+      { new: true },
+    ).lean();
+    if (!doc) return { ok: false, conflict: "wrong-status" };
+
+    const session = await ParkingSessionModel.findOneAndUpdate(
+      { reservationId: String(doc._id), exitTime: null },
+      { exitTime },
+      { new: true },
+    ).lean();
+    if (!session) {
+      throw new Error(`Active reservation ${id} has no open parking session`);
+    }
+    return {
+      ok: true,
+      value: { reservation: toReservation(doc), session: toSession(session) },
+    };
+  },
 };
 
 function toLot(doc: Omit<ParkingLotRecord, "id"> & { _id: unknown }) {
@@ -174,5 +263,23 @@ function toReservation(doc: {
     status: doc.status as ReservationRecord["status"],
     startTime: doc.startTime,
     endTime: doc.endTime,
+  };
+}
+
+function toSession(doc: {
+  _id: unknown;
+  spotId: string;
+  vehicleId: string;
+  reservationId?: string | null;
+  entryTime: Date;
+  exitTime?: Date | null;
+}): ParkingSessionRecord {
+  return {
+    id: String(doc._id),
+    spotId: doc.spotId,
+    vehicleId: doc.vehicleId,
+    reservationId: doc.reservationId ?? "",
+    entryTime: doc.entryTime,
+    exitTime: doc.exitTime ?? null,
   };
 }

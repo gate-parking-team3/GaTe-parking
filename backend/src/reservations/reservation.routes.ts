@@ -12,8 +12,10 @@ import {
 import { parseTimeWindow, spotSuitsVehicle } from "./reservation.rules.js";
 import {
   mongoReservationStore,
+  type ParkingOutcome,
   type ReservationStore,
 } from "./reservation.store.js";
+import type { ReservationRecord } from "../parks/reservation.types.js";
 
 const ID_PATTERN = /^[a-fA-F0-9]{24}$/;
 
@@ -211,7 +213,87 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
     }),
   );
 
+  // US 3: check in. Only the owner, only a `reserved` reservation, only inside its window.
+  router.post(
+    "/:id/start",
+    handle(async (req, res) => {
+      const reservation = await loadOwnReservation(req, res, store);
+      if (!reservation) return;
+      if (reservation.status !== "reserved") {
+        res
+          .status(409)
+          .json({ error: "Only a reserved reservation can be started" });
+        return;
+      }
+      const at = now();
+      if (at < reservation.startTime || at >= reservation.endTime) {
+        res.status(422).json({
+          error: "Parking can only start within the reservation window",
+        });
+        return;
+      }
+      sendOutcome(res, await store.startParking(reservation.id, at));
+    }),
+  );
+
+  // US 3: check out. Only the owner, only an `active` reservation (also after its end time).
+  router.post(
+    "/:id/end",
+    handle(async (req, res) => {
+      const reservation = await loadOwnReservation(req, res, store);
+      if (!reservation) return;
+      if (reservation.status !== "active") {
+        res
+          .status(409)
+          .json({ error: "Only an active reservation can be ended" });
+        return;
+      }
+      sendOutcome(res, await store.endParking(reservation.id, now()));
+    }),
+  );
+
   return router;
+}
+
+// Loads the reservation in :id for its owner, or sends the error response and returns null.
+async function loadOwnReservation(
+  req: Request,
+  res: Response,
+  store: ReservationStore,
+): Promise<ReservationRecord | null> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in" });
+    return null;
+  }
+  const id = readId(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid reservation id" });
+    return null;
+  }
+  const reservation = await store.findById(id);
+  if (!reservation) {
+    res.status(404).json({ error: "Reservation not found" });
+    return null;
+  }
+  if (reservation.userId !== userId) {
+    res.status(403).json({ error: "Only the owner can start or end parking" });
+    return null;
+  }
+  return reservation;
+}
+
+function sendOutcome(res: Response, outcome: ParkingOutcome): void {
+  if (outcome.ok) {
+    res.json(outcome.value);
+    return;
+  }
+  res.status(409).json({
+    error:
+      outcome.conflict === "already-parked"
+        ? "The spot or the vehicle is already in use by another parking session"
+        : "The reservation changed in the meantime, reload it and try again",
+  });
 }
 
 function readId(value: unknown): string | null {
