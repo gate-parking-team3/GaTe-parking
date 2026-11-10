@@ -69,6 +69,7 @@ const MORNING = {
 };
 
 let store: ReservationStore;
+let clock: Date;
 
 function appAs(userId?: string, role: User["role"] = "user") {
   const signIn: RequestHandler = (req, _res, next) => {
@@ -82,7 +83,7 @@ function appAs(userId?: string, role: User["role"] = "user") {
       vehicle(TESLA, ANNA, "electric"),
       vehicle(PETR_CAR, PETR, "combustion"),
     ]),
-    now: () => NOW,
+    now: () => clock,
   };
   const app = express();
   app.use(express.json());
@@ -106,18 +107,21 @@ const available = (
     .get(`/api/lots/${LOT}/available-spots`)
     .query({ start: MORNING.startTime, end: MORNING.endTime, ...query });
 
+const LOTS = [
+  {
+    id: LOT,
+    name: "Main lot",
+    address: "Main Street 1",
+    totalCapacity: 4,
+    evCapacity: 1,
+    disabledCapacity: 1,
+  },
+];
+
 beforeEach(() => {
+  clock = NOW;
   store = memoryReservationStore({
-    lots: [
-      {
-        id: LOT,
-        name: "Main lot",
-        address: "Main Street 1",
-        totalCapacity: 4,
-        evCapacity: 1,
-        disabledCapacity: 1,
-      },
-    ],
+    lots: LOTS,
     spots: [STANDARD, SMALL, EV, DISABLED],
   });
 });
@@ -313,5 +317,215 @@ describe("GET /api/reservations", () => {
     expect((await request(appAs(ANNA)).get("/api/reservations/x")).status).toBe(
       400,
     );
+  });
+});
+
+describe("POST /api/reservations/:id/start and /end", () => {
+  const DURING = new Date("2026-11-10T09:30:00Z");
+  const LATER = new Date("2026-11-10T10:15:00Z");
+
+  const book = async (
+    userId = ANNA,
+    vehicleId = SKODA,
+    window = MORNING,
+  ): Promise<string> => {
+    const res = await reserve(userId, {
+      vehicleId,
+      spotId: STANDARD.id,
+      ...window,
+    });
+    expect(res.status).toBe(201);
+    return res.body.id as string;
+  };
+  const start = (rid: string, userId = ANNA, role: User["role"] = "user") =>
+    request(appAs(userId, role)).post(`/api/reservations/${rid}/start`);
+  const end = (rid: string, userId = ANNA, role: User["role"] = "user") =>
+    request(appAs(userId, role)).post(`/api/reservations/${rid}/end`);
+
+  it("starts parking: reservation active, session open, spot busy", async () => {
+    const rid = await book();
+    clock = DURING;
+    const res = await start(rid);
+    expect(res.status).toBe(200);
+    expect(res.body.reservation).toMatchObject({
+      id: rid,
+      status: "active",
+      ...MORNING,
+    });
+    expect(res.body.session).toEqual({
+      id: expect.any(String),
+      spotId: STANDARD.id,
+      vehicleId: SKODA,
+      reservationId: rid,
+      entryTime: DURING.toISOString(),
+      exitTime: null,
+    });
+    const mine = await request(appAs(ANNA)).get(`/api/reservations/${rid}`);
+    expect(mine.body.status).toBe("active");
+  });
+
+  it("ends parking: reservation completed, exit time recorded, spot free again", async () => {
+    const rid = await book();
+    clock = DURING;
+    await start(rid);
+    clock = LATER;
+    const res = await end(rid);
+    expect(res.status).toBe(200);
+    expect(res.body.reservation.status).toBe("completed");
+    expect(res.body.session).toMatchObject({
+      reservationId: rid,
+      entryTime: DURING.toISOString(),
+      exitTime: LATER.toISOString(),
+    });
+    // The rest of the booked window is free again.
+    const spots = await available(PETR, {
+      vehicleId: PETR_CAR,
+      start: LATER.toISOString(),
+      end: MORNING.endTime,
+    });
+    expect(spots.body.spots).toEqual([
+      expect.objectContaining({ id: STANDARD.id }),
+    ]);
+  });
+
+  it("keeps the spot blocked right now while the car stays past the end time", async () => {
+    const rid = await book();
+    clock = DURING;
+    await start(rid);
+    clock = new Date("2026-11-10T11:30:00Z");
+    const spots = await available(PETR, {
+      vehicleId: PETR_CAR,
+      start: clock.toISOString(),
+      end: "2026-11-10T12:00:00.000Z",
+    });
+    expect(spots.body.spots).toEqual([]);
+    expect((await end(rid)).status).toBe(200);
+  });
+
+  it("does not block later bookings of the spot while the car is parked", async () => {
+    const rid = await book();
+    clock = DURING;
+    await start(rid);
+    const tomorrow = await reserve(PETR, {
+      vehicleId: PETR_CAR,
+      spotId: STANDARD.id,
+      startTime: "2026-11-11T09:00:00.000Z",
+      endTime: "2026-11-11T10:00:00.000Z",
+    });
+    expect(tomorrow.status).toBe(201);
+  });
+
+  it("recovers from a start or an end that stopped halfway", async () => {
+    const reservation = (rid: string, status: "reserved" | "active") => ({
+      id: rid,
+      userId: ANNA,
+      vehicleId: SKODA,
+      spotId: STANDARD.id,
+      lotId: LOT,
+      status,
+      startTime: new Date(MORNING.startTime),
+      endTime: new Date(MORNING.endTime),
+    });
+    const session = (rid: string, exitTime: Date | null) => ({
+      id: id(500),
+      spotId: STANDARD.id,
+      vehicleId: SKODA,
+      reservationId: rid,
+      entryTime: new Date("2026-11-10T09:10:00Z"),
+      exitTime,
+    });
+    clock = DURING;
+
+    // Session opened, status still reserved: start reuses the session.
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD],
+      reservations: [reservation(id(400), "reserved")],
+      sessions: [session(id(400), null)],
+    });
+    const started = await start(id(400));
+    expect(started.status).toBe(200);
+    expect(started.body.session.id).toBe(id(500));
+    expect(started.body.reservation.status).toBe("active");
+
+    // Session closed, status still active: end completes the reservation.
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD],
+      reservations: [reservation(id(401), "active")],
+      sessions: [session(id(401), DURING)],
+    });
+    const ended = await end(id(401));
+    expect(ended.status).toBe(200);
+    expect(ended.body.reservation.status).toBe("completed");
+    expect(ended.body.session.exitTime).toBe(DURING.toISOString());
+  });
+
+  it("lets only the owner start or end, not other users or admins", async () => {
+    const rid = await book();
+    clock = DURING;
+    expect((await start(rid, PETR)).status).toBe(403);
+    expect((await start(rid, ADMIN, "admin")).status).toBe(403);
+    await start(rid);
+    expect((await end(rid, PETR)).status).toBe(403);
+    expect((await end(rid, ADMIN, "admin")).status).toBe(403);
+  });
+
+  it("refuses the wrong status", async () => {
+    const rid = await book();
+    clock = DURING;
+    const notStarted = await end(rid);
+    expect(notStarted.status).toBe(409);
+    expect(notStarted.body).toEqual({
+      error: "Only an active reservation can be ended",
+    });
+    expect((await start(rid)).status).toBe(200);
+    expect((await start(rid)).status).toBe(409);
+    expect((await end(rid)).status).toBe(200);
+    expect((await end(rid)).status).toBe(409);
+    expect((await start(rid)).status).toBe(409);
+  });
+
+  it("starts only inside the reservation window", async () => {
+    const rid = await book();
+    clock = new Date("2026-11-10T08:59:59Z");
+    const early = await start(rid);
+    expect(early.status).toBe(422);
+    expect(early.body).toEqual({
+      error: "Parking can only start within the reservation window",
+    });
+    clock = new Date(MORNING.endTime);
+    expect((await start(rid)).status).toBe(422);
+    clock = new Date(MORNING.startTime);
+    expect((await start(rid)).status).toBe(200);
+  });
+
+  it("refuses to start while the spot is still occupied by another session", async () => {
+    const first = await book(PETR, PETR_CAR);
+    const next = await book(ANNA, SKODA, {
+      startTime: MORNING.endTime,
+      endTime: "2026-11-10T12:00:00.000Z",
+    });
+    clock = DURING;
+    await start(first, PETR);
+    // Petr overstays, so Anna cannot check in on the same spot yet.
+    clock = new Date("2026-11-10T11:05:00Z");
+    const blocked = await start(next);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body).toEqual({
+      error:
+        "The spot or the vehicle is already in use by another parking session",
+    });
+    await end(first, PETR);
+    expect((await start(next)).status).toBe(200);
+  });
+
+  it("rejects malformed and unknown ids and anonymous callers", async () => {
+    expect((await start("x")).status).toBe(400);
+    expect((await end(id(999))).status).toBe(404);
+    const rid = await book();
+    expect(
+      (await request(appAs()).post(`/api/reservations/${rid}/start`)).status,
+    ).toBe(401);
   });
 });
