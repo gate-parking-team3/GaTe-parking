@@ -649,6 +649,67 @@ describe("PATCH /api/reservations/:id", () => {
     expect((await edit(rid, AFTERNOON)).status).toBe(409);
   });
 
+  it("refuses a spot that a parked car still occupies", async () => {
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD, EV],
+      reservations: [
+        {
+          id: id(400),
+          userId: ANNA,
+          vehicleId: TESLA,
+          spotId: STANDARD.id,
+          lotId: LOT,
+          status: "reserved",
+          startTime: new Date(MORNING.startTime),
+          endTime: new Date(MORNING.endTime),
+        },
+      ],
+      sessions: [
+        {
+          id: id(500),
+          spotId: EV.id,
+          vehicleId: id(23),
+          reservationId: id(401),
+          entryTime: new Date("2026-11-10T07:00:00Z"),
+          exitTime: null,
+        },
+      ],
+    });
+    // A window starting now meets the open session, a later one does not.
+    const now = await edit(id(400), {
+      spotId: EV.id,
+      startTime: NOW.toISOString(),
+    });
+    expect(now.status).toBe(409);
+    expect((await edit(id(400), { spotId: EV.id })).status).toBe(200);
+  });
+
+  it("moves the reservation to a spot in another lot", async () => {
+    const north = { ...spot(5, "standard", "standard"), lotId: id(2) };
+    store = memoryReservationStore({ lots: LOTS, spots: [STANDARD, north] });
+    const rid = await book();
+    const res = await edit(rid, { spotId: north.id });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ spotId: north.id, lotId: id(2) });
+  });
+
+  it("asks to reload when the reservation changed while saving", async () => {
+    const rid = await book();
+    store = {
+      ...store,
+      updateIfFree: async () => ({
+        ok: false as const,
+        conflict: "wrong-status" as const,
+      }),
+    };
+    const res = await edit(rid, AFTERNOON);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: "The reservation changed in the meantime, reload it and try again",
+    });
+  });
+
   it("rejects a bad body, window or ids", async () => {
     const rid = await book();
     expect((await edit(rid, {})).status).toBe(400);

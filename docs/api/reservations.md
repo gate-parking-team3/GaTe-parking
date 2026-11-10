@@ -75,7 +75,9 @@ Body: any of `{ startTime, endTime, vehicleId, spotId }`. Missing fields keep th
 - `403` someone else's reservation.
 - `404` reservation or spot not found, or a vehicle that is not the owner's.
 - `422` the spot does not suit the vehicle.
-- `409` the reservation is not upcoming and `reserved` (started, completed, cancelled or its start has passed), the spot or the vehicle is already booked by another reservation for an overlapping window, or the reservation changed while it was being saved (reload and retry).
+- `409` the reservation is not upcoming and `reserved` (started, completed, cancelled or its start has passed), the spot or the vehicle is already booked by another reservation for an overlapping window, the spot still has a parked car (for a window starting by now), or the reservation changed while it was being saved, e.g. by a check-in or another edit (reload and retry).
+
+The reservation keeps its old slot until the new one is secured: the backend first holds the new slot with a temporary reservation, checks for a rival booking, then moves the reservation and removes the hold. If two requests race for the same slot, at least one gets `409`, as for `POST`.
 
 ### `POST /api/reservations/:id/start` (US 3)
 

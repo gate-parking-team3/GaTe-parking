@@ -85,7 +85,7 @@ export interface ReservationStore {
   /**
    * US 11: writes the changes to a `reserved` reservation, unless another blocking reservation or a
    * parking session takes the spot or the vehicle in the new window (the reservation itself does not count).
-   * Safe when it races with a booking or a check-in.
+   * Safe when it races with a booking, a check-in or another edit of the same reservation.
    */
   updateIfFree(
     id: string,
@@ -197,43 +197,61 @@ export const mongoReservationStore: ReservationStore = {
   },
 
   async updateIfFree(id, changes, now) {
+    // Status first, and remember what we read: the edit below only applies if it is still unchanged.
+    const current = await ReservationModel.findOne({
+      _id: id,
+      status: "reserved",
+    }).lean();
+    if (!current) return { ok: false, conflict: "wrong-status" };
+
     const window = { start: changes.startTime, end: changes.endTime };
-    const taken = {
+    const takenExcept = (...ids: unknown[]) => ({
       ...overlapping(window),
       $or: [{ spotId: changes.spotId }, { vehicleId: changes.vehicleId }],
-      _id: { $ne: id },
-    };
+      _id: { $nin: ids },
+    });
     const isParked = () =>
       ParkingSessionModel.exists({
         spotId: changes.spotId,
         ...sessionOverlapping(window, now),
       });
-
-    if ((await ReservationModel.exists(taken)) || (await isParked())) {
+    if (
+      (await ReservationModel.exists(takenExcept(current._id))) ||
+      (await isParked())
+    ) {
       return { ok: false, conflict: "taken" };
     }
 
-    // Same idea as createIfFree: write first, then look for a rival and undo on one.
-    // The status filter keeps a check-in that happened meanwhile from being edited.
-    const before = await ReservationModel.findOneAndUpdate(
-      { _id: id, status: "reserved" },
-      changes,
-    ).lean();
-    if (!before) return { ok: false, conflict: "wrong-status" };
-    if (await ReservationModel.exists(taken)) {
-      await ReservationModel.updateOne(
-        { _id: id, ...changes },
+    // Like createIfFree, but without ever undoing a move: hold the new slot with a temporary
+    // reservation, look for a rival, and only then move the reservation. Until then it keeps its
+    // old slot, so backing out only frees space and never double-books the old slot.
+    const hold = await ReservationModel.create({
+      userId: current.userId,
+      ...changes,
+      status: "reserved",
+    });
+    try {
+      if (await ReservationModel.exists(takenExcept(current._id, hold._id))) {
+        return { ok: false, conflict: "taken" };
+      }
+      // Matching on the values we read refuses the edit if a check-in or another edit came first.
+      const updated = await ReservationModel.findOneAndUpdate(
         {
-          vehicleId: before.vehicleId,
-          spotId: before.spotId,
-          lotId: before.lotId,
-          startTime: before.startTime,
-          endTime: before.endTime,
+          _id: id,
+          status: "reserved",
+          vehicleId: current.vehicleId,
+          spotId: current.spotId,
+          startTime: current.startTime,
+          endTime: current.endTime,
         },
-      );
-      return { ok: false, conflict: "taken" };
+        changes,
+        { new: true },
+      ).lean();
+      if (!updated) return { ok: false, conflict: "wrong-status" };
+      return { ok: true, value: toReservation(updated) };
+    } finally {
+      await ReservationModel.deleteOne({ _id: hold._id });
     }
-    return { ok: true, value: { ...toReservation(before), ...changes } };
   },
 
   async listByUser(userId) {
