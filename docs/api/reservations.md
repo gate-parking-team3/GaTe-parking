@@ -1,6 +1,6 @@
-# Parking lots and reservations (US 4, US 3)
+# Parking lots and reservations (US 4, US 3, US 11)
 
-Booking a parking spot for a vehicle and a time window (US 4), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
+Booking a parking spot for a vehicle and a time window (US 4), editing an upcoming booking (US 11), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
 
 ```json
 {
@@ -63,6 +63,19 @@ The caller's reservations in every status, latest `startTime` first: `200` and a
 ### `GET /api/reservations/:id`
 
 One reservation, for its owner or an admin: `200`. `400` malformed id, `403` someone else's, `404` not found.
+
+### `PATCH /api/reservations/:id` (US 11)
+
+Edit an upcoming reservation. Its owner or an admin can call it, only while the reservation is `reserved` and its `startTime` is still in the future.
+
+Body: any of `{ startTime, endTime, vehicleId, spotId }`. Missing fields keep their current value. The merged result is checked like a new booking: valid time window, a vehicle of the reservation's owner (also when an admin edits it), a spot that suits the vehicle. The lot is taken from the spot. The reservation's own current window never conflicts with the edit.
+
+- `200` the updated reservation.
+- `400` empty body (none of the four fields), invalid id or time window.
+- `403` someone else's reservation.
+- `404` reservation or spot not found, or a vehicle that is not the owner's.
+- `422` the spot does not suit the vehicle.
+- `409` the reservation is not upcoming and `reserved` (started, completed, cancelled or its start has passed), the spot or the vehicle is already booked by another reservation for an overlapping window, or the reservation changed while it was being saved (reload and retry).
 
 ### `POST /api/reservations/:id/start` (US 3)
 

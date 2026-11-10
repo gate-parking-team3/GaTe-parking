@@ -529,3 +529,147 @@ describe("POST /api/reservations/:id/start and /end", () => {
     ).toBe(401);
   });
 });
+
+describe("PATCH /api/reservations/:id", () => {
+  const AFTERNOON = {
+    startTime: "2026-11-10T13:00:00.000Z",
+    endTime: "2026-11-10T15:00:00.000Z",
+  };
+
+  const book = async (
+    userId = ANNA,
+    vehicleId = SKODA,
+    window = MORNING,
+    spotId = STANDARD.id,
+  ): Promise<string> => {
+    const res = await reserve(userId, { vehicleId, spotId, ...window });
+    expect(res.status).toBe(201);
+    return res.body.id as string;
+  };
+  const edit = (
+    rid: string,
+    body: Record<string, unknown>,
+    userId = ANNA,
+    role: User["role"] = "user",
+  ) =>
+    request(appAs(userId, role)).patch(`/api/reservations/${rid}`).send(body);
+
+  it("lets the owner move the time window and keeps the rest", async () => {
+    const rid = await book();
+    const res = await edit(rid, AFTERNOON);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      id: rid,
+      userId: ANNA,
+      vehicleId: SKODA,
+      spotId: STANDARD.id,
+      lotId: LOT,
+      status: "reserved",
+      ...AFTERNOON,
+    });
+    const stored = await request(appAs(ANNA)).get(`/api/reservations/${rid}`);
+    expect(stored.body).toMatchObject(AFTERNOON);
+  });
+
+  it("changes the vehicle and the spot together", async () => {
+    const rid = await book();
+    const res = await edit(rid, { vehicleId: TESLA, spotId: EV.id });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      vehicleId: TESLA,
+      spotId: EV.id,
+      ...MORNING,
+    });
+  });
+
+  it("does not conflict with its own old window", async () => {
+    const rid = await book();
+    const res = await edit(rid, { endTime: "2026-11-10T12:00:00.000Z" });
+    expect(res.status).toBe(200);
+    expect(res.body.endTime).toBe("2026-11-10T12:00:00.000Z");
+  });
+
+  it("refuses a window that overlaps another booking of the spot", async () => {
+    const rid = await book();
+    await book(PETR, PETR_CAR, AFTERNOON);
+    const res = await edit(rid, { endTime: "2026-11-10T14:00:00.000Z" });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: "The spot or the vehicle is already booked for this time",
+    });
+    // Back-to-back is fine, and the refused edit changed nothing.
+    expect(
+      (await edit(rid, { endTime: AFTERNOON.startTime })).body.endTime,
+    ).toBe(AFTERNOON.startTime);
+  });
+
+  it("refuses a vehicle that is booked elsewhere at the same time", async () => {
+    await book(ANNA, TESLA, MORNING, EV.id);
+    const rid = await book(ANNA, SKODA, AFTERNOON);
+    expect((await edit(rid, { vehicleId: TESLA })).status).toBe(200);
+    expect((await edit(rid, MORNING)).status).toBe(409);
+  });
+
+  it("refuses a spot that does not suit the merged vehicle", async () => {
+    const rid = await book(ANNA, TESLA, MORNING, EV.id);
+    const res = await edit(rid, { vehicleId: SKODA });
+    expect(res.status).toBe(422);
+    expect((await edit(rid, { spotId: SMALL.id })).status).toBe(422);
+  });
+
+  it("lets an admin edit, with the owner's vehicles only", async () => {
+    const rid = await book();
+    const res = await edit(rid, { vehicleId: TESLA }, ADMIN, "admin");
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBe(ANNA);
+    const petrsCar = await edit(rid, { vehicleId: PETR_CAR }, ADMIN, "admin");
+    expect(petrsCar.status).toBe(404);
+  });
+
+  it("refuses other users and their vehicles", async () => {
+    const rid = await book();
+    const res = await edit(rid, AFTERNOON, PETR);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      error: "You can only edit your own reservation",
+    });
+    expect((await edit(rid, { vehicleId: PETR_CAR })).status).toBe(404);
+  });
+
+  it("edits only upcoming reserved reservations", async () => {
+    const rid = await book();
+    clock = new Date(MORNING.startTime);
+    const begun = await edit(rid, AFTERNOON);
+    expect(begun.status).toBe(409);
+    expect(begun.body).toEqual({
+      error: "Only an upcoming reservation can be edited",
+    });
+    await request(appAs(ANNA)).post(`/api/reservations/${rid}/start`);
+    clock = NOW;
+    expect((await edit(rid, AFTERNOON)).status).toBe(409);
+  });
+
+  it("rejects a bad body, window or ids", async () => {
+    const rid = await book();
+    expect((await edit(rid, {})).status).toBe(400);
+    expect((await edit(rid, { endTime: MORNING.startTime })).body).toEqual({
+      error: "End must be after start",
+    });
+    expect(
+      (
+        await edit(rid, {
+          startTime: "2026-11-09T09:00:00.000Z",
+          endTime: "2026-11-09T11:00:00.000Z",
+        })
+      ).status,
+    ).toBe(400);
+    expect((await edit(rid, { vehicleId: "x" })).status).toBe(400);
+    expect((await edit(rid, { spotId: id(999) })).status).toBe(404);
+    expect((await edit(id(999), AFTERNOON)).status).toBe(404);
+    expect((await edit("x", AFTERNOON)).status).toBe(400);
+    expect(
+      (await request(appAs()).patch(`/api/reservations/${rid}`).send(AFTERNOON))
+        .status,
+    ).toBe(401);
+  });
+});

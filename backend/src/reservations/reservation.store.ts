@@ -42,6 +42,22 @@ export type ParkingConflict = "wrong-status" | "already-parked";
 export type ParkingOutcome =
   { ok: true; value: ParkingResult } | { ok: false; conflict: ParkingConflict };
 
+/** US 11: what an edit writes. The route merges the request with the reservation and validates it. */
+export type ReservationChanges = Pick<
+  ReservationRecord,
+  "vehicleId" | "spotId" | "lotId" | "startTime" | "endTime"
+>;
+
+/**
+ * Why an edit was refused: the reservation is no longer `reserved` (e.g. it was started meanwhile),
+ * or the spot or the vehicle is taken in the new window.
+ */
+export type UpdateConflict = "wrong-status" | "taken";
+
+export type UpdateOutcome =
+  | { ok: true; value: ReservationRecord }
+  | { ok: false; conflict: UpdateConflict };
+
 // Storage boundary, so the routes can be tested without MongoDB
 // (see memory-reservation-store.ts).
 export interface ReservationStore {
@@ -66,6 +82,16 @@ export interface ReservationStore {
     input: NewReservation,
     now: Date,
   ): Promise<ReservationRecord | null>;
+  /**
+   * US 11: writes the changes to a `reserved` reservation, unless another blocking reservation or a
+   * parking session takes the spot or the vehicle in the new window (the reservation itself does not count).
+   * Safe when it races with a booking or a check-in.
+   */
+  updateIfFree(
+    id: string,
+    changes: ReservationChanges,
+    now: Date,
+  ): Promise<UpdateOutcome>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
   /**
@@ -168,6 +194,46 @@ export const mongoReservationStore: ReservationStore = {
       return null;
     }
     return toReservation(doc.toObject());
+  },
+
+  async updateIfFree(id, changes, now) {
+    const window = { start: changes.startTime, end: changes.endTime };
+    const taken = {
+      ...overlapping(window),
+      $or: [{ spotId: changes.spotId }, { vehicleId: changes.vehicleId }],
+      _id: { $ne: id },
+    };
+    const isParked = () =>
+      ParkingSessionModel.exists({
+        spotId: changes.spotId,
+        ...sessionOverlapping(window, now),
+      });
+
+    if ((await ReservationModel.exists(taken)) || (await isParked())) {
+      return { ok: false, conflict: "taken" };
+    }
+
+    // Same idea as createIfFree: write first, then look for a rival and undo on one.
+    // The status filter keeps a check-in that happened meanwhile from being edited.
+    const before = await ReservationModel.findOneAndUpdate(
+      { _id: id, status: "reserved" },
+      changes,
+    ).lean();
+    if (!before) return { ok: false, conflict: "wrong-status" };
+    if (await ReservationModel.exists(taken)) {
+      await ReservationModel.updateOne(
+        { _id: id, ...changes },
+        {
+          vehicleId: before.vehicleId,
+          spotId: before.spotId,
+          lotId: before.lotId,
+          startTime: before.startTime,
+          endTime: before.endTime,
+        },
+      );
+      return { ok: false, conflict: "taken" };
+    }
+    return { ok: true, value: { ...toReservation(before), ...changes } };
   },
 
   async listByUser(userId) {
