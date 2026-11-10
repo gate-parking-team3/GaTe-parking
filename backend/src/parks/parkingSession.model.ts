@@ -6,14 +6,36 @@ const parkingSessionSchema = new mongoose.Schema(
     vehicleId: { type: String, required: true },
     reservationId: { type: String, required: false },
     entryTime: { type: Date, required: true },
-    exitTime: { type: Date, required: false },
+    // null while the car is parked; set when the session ends.
+    exitTime: {
+      type: Date,
+      default: null,
+      validate: {
+        validator: function (this: unknown, exit: Date | null) {
+          if (exit === null || !(this instanceof mongoose.Document))
+            return true;
+          const entry = this.get("entryTime") as Date | undefined;
+          return !entry || exit > entry;
+        },
+        message: "exitTime must be after entryTime",
+      },
+    },
   },
   { timestamps: true, versionKey: false },
 );
 
-// Index for finding active sessions
-parkingSessionSchema.index({ vehicleId: 1, exitTime: 1 });
-// Index for finding sessions by spot
+// A vehicle and a spot can each have only one active (not ended) session.
+const ACTIVE_SESSION = { exitTime: { $type: "null" } };
+parkingSessionSchema.index(
+  { vehicleId: 1 },
+  { unique: true, partialFilterExpression: ACTIVE_SESSION },
+);
+parkingSessionSchema.index(
+  { spotId: 1 },
+  { unique: true, partialFilterExpression: ACTIVE_SESSION },
+);
+// Session history by vehicle and by spot
+parkingSessionSchema.index({ vehicleId: 1, entryTime: -1 });
 parkingSessionSchema.index({ spotId: 1, entryTime: -1 });
 
 export type ParkingSessionSchemaFields = InferSchemaType<
