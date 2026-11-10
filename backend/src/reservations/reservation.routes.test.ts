@@ -710,6 +710,23 @@ describe("PATCH /api/reservations/:id", () => {
     });
   });
 
+  it("does not let an edit overwrite another one saved meanwhile", async () => {
+    const rid = await book();
+    const stale = { ...(await store.findById(rid))! };
+    expect((await edit(rid, AFTERNOON, ADMIN, "admin")).status).toBe(200);
+    // The owner's request read the reservation before the admin's edit was saved.
+    const live = store;
+    store = { ...live, findById: async () => stale };
+    const res = await edit(rid, { vehicleId: TESLA });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: "The reservation changed in the meantime, reload it and try again",
+    });
+    store = live;
+    const stored = await request(appAs(ANNA)).get(`/api/reservations/${rid}`);
+    expect(stored.body).toMatchObject({ vehicleId: SKODA, ...AFTERNOON });
+  });
+
   it("rejects a bad body, window or ids", async () => {
     const rid = await book();
     expect((await edit(rid, {})).status).toBe(400);

@@ -267,7 +267,7 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
       }
 
       const outcome = await store.updateIfFree(
-        reservation.id,
+        reservation,
         {
           vehicleId,
           spotId,

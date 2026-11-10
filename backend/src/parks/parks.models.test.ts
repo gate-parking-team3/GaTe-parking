@@ -93,6 +93,13 @@ describe("ReservationModel", () => {
   it("does not store a version key", () => {
     expect(ReservationModel.schema.get("versionKey")).toBe(false);
   });
+
+  it("expires edit holds through a TTL index", () => {
+    expect(ReservationModel.schema.indexes()).toContainEqual([
+      { holdExpiresAt: 1 },
+      expect.objectContaining({ expireAfterSeconds: 0 }),
+    ]);
+  });
 });
 
 describe("ParkingSessionModel", () => {

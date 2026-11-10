@@ -91,9 +91,18 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
       reservations.push(created);
       return { ...created };
     },
-    async updateIfFree(id, changes, now) {
+    async updateIfFree(read, changes, now) {
+      // Like the MongoDB store: only if the reservation is still exactly as the caller read it.
+      const id = read.id;
       const reservation = reservations.find((r) => r.id === id);
-      if (!reservation || reservation.status !== "reserved") {
+      if (
+        !reservation ||
+        reservation.status !== "reserved" ||
+        reservation.vehicleId !== read.vehicleId ||
+        reservation.spotId !== read.spotId ||
+        reservation.startTime.getTime() !== read.startTime.getTime() ||
+        reservation.endTime.getTime() !== read.endTime.getTime()
+      ) {
         return { ok: false, conflict: "wrong-status" };
       }
       const window = { start: changes.startTime, end: changes.endTime };
