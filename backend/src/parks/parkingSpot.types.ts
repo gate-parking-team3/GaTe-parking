@@ -1,10 +1,12 @@
+import { VEHICLE_SIZES, type VehicleSize } from "../vehicles/vehicle.types.js";
+
 // Parking spot types: standard, disabled, EV
 export const PARKING_SPOT_TYPES = ["standard", "disabled", "ev"] as const;
 export type ParkingSpotType = (typeof PARKING_SPOT_TYPES)[number];
 
-// Spot size categories
-export const PARKING_SPOT_SIZES = ["small", "standard", "large"] as const;
-export type ParkingSpotSize = (typeof PARKING_SPOT_SIZES)[number];
+// Spot sizes match vehicle sizes, so a vehicle fits a spot of the same size.
+export const PARKING_SPOT_SIZES = VEHICLE_SIZES;
+export type ParkingSpotSize = VehicleSize;
 
 // Spot status: free (available), reserved (booked), occupied (in use)
 export const PARKING_SPOT_STATUSES = ["free", "reserved", "occupied"] as const;

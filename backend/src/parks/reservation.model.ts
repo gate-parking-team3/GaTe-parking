@@ -14,9 +14,20 @@ const reservationSchema = new mongoose.Schema(
       required: true,
     },
     startTime: { type: Date, required: true },
-    endTime: { type: Date, required: true },
+    endTime: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function (this: unknown, end: Date) {
+          if (!(this instanceof mongoose.Document)) return true;
+          const start = this.get("startTime") as Date | undefined;
+          return !start || end > start;
+        },
+        message: "endTime must be after startTime",
+      },
+    },
   },
-  { timestamps: true },
+  { timestamps: true, versionKey: false },
 );
 
 // Index for finding active reservations for a vehicle at a given time
