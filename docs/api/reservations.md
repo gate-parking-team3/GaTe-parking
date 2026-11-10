@@ -17,15 +17,15 @@ Booking a parking spot for a vehicle and a time window (US 4), then starting and
 
 ## Rules
 
-| Rule            | Detail                                                                                                                                                                     |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Time window     | ISO date-times. `endTime` must be after `startTime`. `startTime` may be at most 5 minutes in the past.                                                                     |
-| Overlap         | Windows overlap when each starts before the other ends. Back-to-back bookings (one ends at 10:00, the next starts at 10:00) are allowed.                                   |
-| Blocking        | Reservations with status `reserved` or `active` hold their spot and their vehicle. `completed` and `cancelled` free them. A parking session also holds its spot.           |
-| One per vehicle | A vehicle cannot hold two overlapping reservations, even on different spots.                                                                                               |
-| Suitability     | A vehicle fits a spot of its own size or larger. EV spots are for electric cars only. Combustion cars get standard spots. Electric cars get EV and standard spots.         |
-| Disabled spots  | Offered only to entitled users. Users have no such flag yet, so disabled spots are never offered (`DISABLED_ALLOWED` in `backend/src/reservations/reservation.routes.ts`). |
-| Spot status     | Availability for a window is computed from reservations and sessions. Booking does not change the spot's `status` field.                                                   |
+| Rule            | Detail                                                                                                                                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Time window     | ISO date-times. `endTime` must be after `startTime`. `startTime` may be at most 5 minutes in the past.                                                                                                                                                           |
+| Overlap         | Windows overlap when each starts before the other ends. Back-to-back bookings (one ends at 10:00, the next starts at 10:00) are allowed.                                                                                                                         |
+| Blocking        | Reservations with status `reserved` or `active` hold their spot and their vehicle. `completed` and `cancelled` free them. A parking session also holds its spot: from entry to exit, and while the car is still parked, for windows starting by now (see below). |
+| One per vehicle | A vehicle cannot hold two overlapping reservations, even on different spots.                                                                                                                                                                                     |
+| Suitability     | A vehicle fits a spot of its own size or larger. EV spots are for electric cars only. Combustion cars get standard spots. Electric cars get EV and standard spots.                                                                                               |
+| Disabled spots  | Offered only to entitled users. Users have no such flag yet, so disabled spots are never offered (`DISABLED_ALLOWED` in `backend/src/reservations/reservation.routes.ts`).                                                                                       |
+| Spot status     | Availability for a window is computed from reservations and sessions. Booking does not change the spot's `status` field.                                                                                                                                         |
 
 The rules live in `backend/src/reservations/reservation.rules.ts` (`spotSuitsVehicle`, `windowsOverlap`, `parseTimeWindow`, `BLOCKING_STATUSES`) so other stories reuse them instead of rewriting them.
 
@@ -74,8 +74,13 @@ Check-in ("Start Parking"). No body. Only the reservation's owner can call it (a
 {
   "reservation": {
     "id": "6911c0ffee0000000000abcd",
+    "userId": "6908abc12345678901234568",
+    "vehicleId": "6908abc12345678901234567",
+    "spotId": "6911aaaa0000000000000001",
+    "lotId": "6911bbbb0000000000000001",
     "status": "active",
-    "...": "..."
+    "startTime": "2026-11-10T09:00:00.000Z",
+    "endTime": "2026-11-10T11:00:00.000Z"
   },
   "session": {
     "id": "6911d00d0000000000000001",
@@ -101,7 +106,9 @@ Check-out ("End Parking"). No body. Owner only, and only while the reservation i
 
 ### Parking and spot status
 
-The reservation keeps its booked `startTime`/`endTime`; the real arrival and departure are the session's `entryTime`/`exitTime`. The spot's `status` field is not written. A spot is occupied while it has an open session (`exitTime` null), which blocks it in availability and booking, also when the driver stays past `endTime`. After the end, the completed reservation no longer blocks the spot, so the rest of the window is free again. The database allows one open session per spot and per vehicle.
+The reservation keeps its booked `startTime`/`endTime`; the real arrival and departure are the session's `entryTime`/`exitTime`. The spot's `status` field is not written. A spot is occupied while it has an open session (`exitTime` null). An open session blocks windows that start by now, also when the driver stays past `endTime`, but not later windows: nobody knows when the car leaves, and its active reservation already holds the booked window. If the car is still there when the next booking starts, that check-in gets `409`. After the end, the completed reservation no longer blocks the spot, so the rest of the window is free again. The database allows one open session per spot and per vehicle.
+
+Start opens the session before switching the status, and end closes the session before switching it. A start or end that stopped halfway (e.g. a database error) can simply be retried.
 
 ## Sample data
 

@@ -107,19 +107,21 @@ const available = (
     .get(`/api/lots/${LOT}/available-spots`)
     .query({ start: MORNING.startTime, end: MORNING.endTime, ...query });
 
+const LOTS = [
+  {
+    id: LOT,
+    name: "Main lot",
+    address: "Main Street 1",
+    totalCapacity: 4,
+    evCapacity: 1,
+    disabledCapacity: 1,
+  },
+];
+
 beforeEach(() => {
   clock = NOW;
   store = memoryReservationStore({
-    lots: [
-      {
-        id: LOT,
-        name: "Main lot",
-        address: "Main Street 1",
-        totalCapacity: 4,
-        evCapacity: 1,
-        disabledCapacity: 1,
-      },
-    ],
+    lots: LOTS,
     spots: [STANDARD, SMALL, EV, DISABLED],
   });
 });
@@ -386,18 +388,77 @@ describe("POST /api/reservations/:id/start and /end", () => {
     ]);
   });
 
-  it("keeps the spot blocked while the car stays past the end time", async () => {
+  it("keeps the spot blocked right now while the car stays past the end time", async () => {
     const rid = await book();
     clock = DURING;
     await start(rid);
     clock = new Date("2026-11-10T11:30:00Z");
     const spots = await available(PETR, {
       vehicleId: PETR_CAR,
-      start: "2026-11-10T11:35:00.000Z",
+      start: clock.toISOString(),
       end: "2026-11-10T12:00:00.000Z",
     });
     expect(spots.body.spots).toEqual([]);
     expect((await end(rid)).status).toBe(200);
+  });
+
+  it("does not block later bookings of the spot while the car is parked", async () => {
+    const rid = await book();
+    clock = DURING;
+    await start(rid);
+    const tomorrow = await reserve(PETR, {
+      vehicleId: PETR_CAR,
+      spotId: STANDARD.id,
+      startTime: "2026-11-11T09:00:00.000Z",
+      endTime: "2026-11-11T10:00:00.000Z",
+    });
+    expect(tomorrow.status).toBe(201);
+  });
+
+  it("recovers from a start or an end that stopped halfway", async () => {
+    const reservation = (rid: string, status: "reserved" | "active") => ({
+      id: rid,
+      userId: ANNA,
+      vehicleId: SKODA,
+      spotId: STANDARD.id,
+      lotId: LOT,
+      status,
+      startTime: new Date(MORNING.startTime),
+      endTime: new Date(MORNING.endTime),
+    });
+    const session = (rid: string, exitTime: Date | null) => ({
+      id: id(500),
+      spotId: STANDARD.id,
+      vehicleId: SKODA,
+      reservationId: rid,
+      entryTime: new Date("2026-11-10T09:10:00Z"),
+      exitTime,
+    });
+    clock = DURING;
+
+    // Session opened, status still reserved: start reuses the session.
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD],
+      reservations: [reservation(id(400), "reserved")],
+      sessions: [session(id(400), null)],
+    });
+    const started = await start(id(400));
+    expect(started.status).toBe(200);
+    expect(started.body.session.id).toBe(id(500));
+    expect(started.body.reservation.status).toBe("active");
+
+    // Session closed, status still active: end completes the reservation.
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD],
+      reservations: [reservation(id(401), "active")],
+      sessions: [session(id(401), DURING)],
+    });
+    const ended = await end(id(401));
+    expect(ended.status).toBe(200);
+    expect(ended.body.reservation.status).toBe("completed");
+    expect(ended.body.session.exitTime).toBe(DURING.toISOString());
   });
 
   it("lets only the owner start or end, not other users or admins", async () => {

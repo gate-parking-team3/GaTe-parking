@@ -49,21 +49,34 @@ export interface ReservationStore {
   findLot(id: string): Promise<ParkingLotRecord | null>;
   listSpots(lotId: string): Promise<ParkingSpotRecord[]>;
   findSpot(id: string): Promise<ParkingSpotRecord | null>;
-  /** Spots in the lot that are taken at any moment of the window: by a blocking reservation or a parking session. */
-  findBusySpotIds(lotId: string, window: TimeWindow): Promise<Set<string>>;
+  /**
+   * Spots in the lot that are taken at any moment of the window: by a blocking reservation or a parking session.
+   * An open session counts for windows that start by `now` (see `sessionOverlapping`).
+   */
+  findBusySpotIds(
+    lotId: string,
+    window: TimeWindow,
+    now: Date,
+  ): Promise<Set<string>>;
   /**
    * Saves the reservation as `reserved`, unless the spot or the vehicle is already taken in that window.
    * Returns null on such a conflict. Safe when two requests race for the same spot.
    */
-  createIfFree(input: NewReservation): Promise<ReservationRecord | null>;
+  createIfFree(
+    input: NewReservation,
+    now: Date,
+  ): Promise<ReservationRecord | null>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
   /**
-   * US 3 check-in: `reserved` -> `active` and opens a parking session at `entryTime`.
-   * Safe when two requests race: only one of them starts the reservation.
+   * US 3 check-in: opens a parking session at `entryTime`, then `reserved` -> `active`.
+   * Safe when two requests race (only one starts it) and when an earlier attempt stopped halfway.
    */
   startParking(id: string, entryTime: Date): Promise<ParkingOutcome>;
-  /** US 3 check-out: `active` -> `completed` and closes the open session at `exitTime`. */
+  /**
+   * US 3 check-out: closes the open session at `exitTime`, then `active` -> `completed`.
+   * Safe to retry when an earlier attempt stopped halfway.
+   */
   endParking(id: string, exitTime: Date): Promise<ParkingOutcome>;
 }
 
@@ -73,10 +86,24 @@ const overlapping = ({ start, end }: TimeWindow) => ({
   endTime: { $gt: start },
 });
 
-// A session blocks its spot from entry until exit; an open session (exitTime null) blocks it from entry on.
-const sessionOverlapping = ({ start, end }: TimeWindow) => ({
+const OPEN = { $type: "null" } as const;
+
+// A session blocks its spot from entry until exit. An open session (exitTime null) blocks windows that start by `now`:
+// the car is there now, but nobody knows when it leaves. Its active reservation already holds the
+// booked window, and a check-in on an occupied spot is refused (startParking).
+const sessionOverlapping = ({ start, end }: TimeWindow, now: Date) => ({
   entryTime: { $lt: end },
-  $or: [{ exitTime: null }, { exitTime: { $gt: start } }],
+  $or: [
+    { exitTime: { $gt: start } },
+    ...(start <= now ? [{ exitTime: OPEN }] : []),
+  ],
+});
+
+// Matches the unique partial index on vehicleId, so these lookups use it.
+const openSessionOf = (reservation: { _id: unknown; vehicleId: string }) => ({
+  vehicleId: reservation.vehicleId,
+  reservationId: String(reservation._id),
+  exitTime: OPEN,
 });
 
 export const mongoReservationStore: ReservationStore = {
@@ -104,15 +131,15 @@ export const mongoReservationStore: ReservationStore = {
     return doc ? toSpot(doc) : null;
   },
 
-  async findBusySpotIds(lotId, window) {
+  async findBusySpotIds(lotId, window, now) {
     const [reserved, parked] = await Promise.all([
       ReservationModel.distinct("spotId", { lotId, ...overlapping(window) }),
-      ParkingSessionModel.distinct("spotId", sessionOverlapping(window)),
+      ParkingSessionModel.distinct("spotId", sessionOverlapping(window, now)),
     ]);
     return new Set([...reserved, ...parked].map(String));
   },
 
-  async createIfFree(input) {
+  async createIfFree(input, now) {
     const window = { start: input.startTime, end: input.endTime };
     const taken = {
       ...overlapping(window),
@@ -121,7 +148,7 @@ export const mongoReservationStore: ReservationStore = {
     const isParked = () =>
       ParkingSessionModel.exists({
         spotId: input.spotId,
-        ...sessionOverlapping(window),
+        ...sessionOverlapping(window, now),
       });
 
     if ((await ReservationModel.exists(taken)) || (await isParked())) {
@@ -157,60 +184,88 @@ export const mongoReservationStore: ReservationStore = {
   },
 
   async startParking(id, entryTime) {
+    const reservation = await ReservationModel.findOne({
+      _id: id,
+      status: "reserved",
+    }).lean();
+    if (!reservation) return { ok: false, conflict: "wrong-status" };
+
+    // Session first: the unique indexes refuse a second open session on the spot or the vehicle.
+    // A session left by an earlier attempt that stopped halfway is reused.
+    const leftover = await ParkingSessionModel.findOne(
+      openSessionOf(reservation),
+    ).lean();
+    let session = leftover ? toSession(leftover) : null;
+    let created = false;
+    if (!session) {
+      try {
+        const doc = await ParkingSessionModel.create({
+          spotId: reservation.spotId,
+          vehicleId: reservation.vehicleId,
+          reservationId: id,
+          entryTime,
+        });
+        session = toSession(doc.toObject());
+        created = true;
+      } catch (error) {
+        if ((error as { code?: number }).code === 11000) {
+          return { ok: false, conflict: "already-parked" };
+        }
+        throw error;
+      }
+    }
+
     // The status filter makes the switch atomic: of two racing requests only one matches.
-    const doc = await ReservationModel.findOneAndUpdate(
+    const started = await ReservationModel.findOneAndUpdate(
       { _id: id, status: "reserved" },
       { status: "active" },
       { new: true },
     ).lean();
-    if (!doc) return { ok: false, conflict: "wrong-status" };
-
-    try {
-      const session = await ParkingSessionModel.create({
-        spotId: doc.spotId,
-        vehicleId: doc.vehicleId,
-        reservationId: String(doc._id),
-        entryTime,
-      });
-      return {
-        ok: true,
-        value: {
-          reservation: toReservation(doc),
-          session: toSession(session.toObject()),
-        },
-      };
-    } catch (error) {
-      // The unique indexes allow one open session per spot and per vehicle.
-      await ReservationModel.updateOne(
-        { _id: doc._id, status: "active" },
-        { status: "reserved" },
-      );
-      if ((error as { code?: number }).code === 11000) {
-        return { ok: false, conflict: "already-parked" };
-      }
-      throw error;
+    if (!started) {
+      if (created) await ParkingSessionModel.deleteOne({ _id: session.id });
+      return { ok: false, conflict: "wrong-status" };
     }
+    return {
+      ok: true,
+      value: {
+        reservation: toReservation(started),
+        session,
+      },
+    };
   },
 
   async endParking(id, exitTime) {
-    const doc = await ReservationModel.findOneAndUpdate(
+    const reservation = await ReservationModel.findOne({
+      _id: id,
+      status: "active",
+    }).lean();
+    if (!reservation) return { ok: false, conflict: "wrong-status" };
+
+    // Session first, so a failure here leaves the reservation active and the user can retry.
+    // When an earlier attempt already closed it, nothing matches and we go on.
+    await ParkingSessionModel.updateOne(openSessionOf(reservation), {
+      exitTime,
+    });
+
+    const ended = await ReservationModel.findOneAndUpdate(
       { _id: id, status: "active" },
       { status: "completed" },
       { new: true },
     ).lean();
-    if (!doc) return { ok: false, conflict: "wrong-status" };
+    if (!ended) return { ok: false, conflict: "wrong-status" };
 
-    const session = await ParkingSessionModel.findOneAndUpdate(
-      { reservationId: String(doc._id), exitTime: null },
-      { exitTime },
-      { new: true },
-    ).lean();
+    const session = await ParkingSessionModel.findOne({
+      vehicleId: reservation.vehicleId,
+      reservationId: id,
+    })
+      .sort({ entryTime: -1 })
+      .lean();
     if (!session) {
-      throw new Error(`Active reservation ${id} has no open parking session`);
+      throw new Error(`Reservation ${id} was active without a parking session`);
     }
     return {
       ok: true,
-      value: { reservation: toReservation(doc), session: toSession(session) },
+      value: { reservation: toReservation(ended), session: toSession(session) },
     };
   },
 };

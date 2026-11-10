@@ -1,6 +1,10 @@
 import type { ParkingSpotRecord } from "../parks/parkingSpot.types.js";
 import type { ReservationRecord } from "../parks/reservation.types.js";
-import { BLOCKING_STATUSES, windowsOverlap } from "./reservation.rules.js";
+import {
+  BLOCKING_STATUSES,
+  windowsOverlap,
+  type TimeWindow,
+} from "./reservation.rules.js";
 import type {
   ParkingLotRecord,
   ParkingSessionRecord,
@@ -25,11 +29,17 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
 
   const blocking = (r: ReservationRecord) =>
     BLOCKING_STATUSES.includes(r.status);
-  // Same rule as the MongoDB store: an open session blocks its spot from entry on.
-  const sessionWindow = (s: ParkingSessionRecord) => ({
-    start: s.entryTime,
-    end: s.exitTime ?? new Date(8.64e15),
-  });
+  // Same rule as the MongoDB store (sessionOverlapping): an open session blocks its spot
+  // for windows that start by now.
+  const sessionBlocks = (
+    s: ParkingSessionRecord,
+    window: TimeWindow,
+    now: Date,
+  ) =>
+    s.entryTime < window.end &&
+    (s.exitTime ? s.exitTime > window.start : window.start <= now);
+  const openSessionOf = (r: ReservationRecord) =>
+    sessions.find((s) => s.reservationId === r.id && s.exitTime === null);
 
   return {
     async listLots() {
@@ -44,7 +54,7 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
     async findSpot(id) {
       return spots.find((spot) => spot.id === id) ?? null;
     },
-    async findBusySpotIds(lotId, window) {
+    async findBusySpotIds(lotId, window, now) {
       const lotSpotIds = new Set(
         spots.filter((s) => s.lotId === lotId).map((s) => s.id),
       );
@@ -59,14 +69,12 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
           .map((r) => r.spotId),
         ...sessions
           .filter(
-            (s) =>
-              lotSpotIds.has(s.spotId) &&
-              windowsOverlap(window, sessionWindow(s)),
+            (s) => lotSpotIds.has(s.spotId) && sessionBlocks(s, window, now),
           )
           .map((s) => s.spotId),
       ]);
     },
-    async createIfFree(input) {
+    async createIfFree(input, now) {
       const window = { start: input.startTime, end: input.endTime };
       const taken = reservations.some(
         (r) =>
@@ -75,8 +83,7 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
           windowsOverlap(window, { start: r.startTime, end: r.endTime }),
       );
       const parked = sessions.some(
-        (s) =>
-          s.spotId === input.spotId && windowsOverlap(window, sessionWindow(s)),
+        (s) => s.spotId === input.spotId && sessionBlocks(s, window, now),
       );
       if (taken || parked) return null;
       const id = newId();
@@ -97,23 +104,28 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
       if (!reservation || reservation.status !== "reserved") {
         return { ok: false, conflict: "wrong-status" };
       }
-      const parked = sessions.some(
-        (s) =>
-          s.exitTime === null &&
-          (s.spotId === reservation.spotId ||
-            s.vehicleId === reservation.vehicleId),
-      );
-      if (parked) return { ok: false, conflict: "already-parked" };
+      // Like the MongoDB store: reuse a session left by an attempt that stopped halfway,
+      // otherwise refuse a second open session on the spot or the vehicle.
+      let session = openSessionOf(reservation);
+      if (!session) {
+        const parked = sessions.some(
+          (s) =>
+            s.exitTime === null &&
+            (s.spotId === reservation.spotId ||
+              s.vehicleId === reservation.vehicleId),
+        );
+        if (parked) return { ok: false, conflict: "already-parked" };
+        session = {
+          id: newId(),
+          spotId: reservation.spotId,
+          vehicleId: reservation.vehicleId,
+          reservationId: reservation.id,
+          entryTime,
+          exitTime: null,
+        };
+        sessions.push(session);
+      }
       reservation.status = "active";
-      const session: ParkingSessionRecord = {
-        id: newId(),
-        spotId: reservation.spotId,
-        vehicleId: reservation.vehicleId,
-        reservationId: reservation.id,
-        entryTime,
-        exitTime: null,
-      };
-      sessions.push(session);
       return {
         ok: true,
         value: { reservation: { ...reservation }, session: { ...session } },
@@ -121,14 +133,20 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
     },
     async endParking(id, exitTime) {
       const reservation = reservations.find((r) => r.id === id);
-      const session = sessions.find(
-        (s) => s.reservationId === id && s.exitTime === null,
-      );
-      if (!reservation || reservation.status !== "active" || !session) {
+      if (!reservation || reservation.status !== "active") {
         return { ok: false, conflict: "wrong-status" };
       }
+      const open = openSessionOf(reservation);
+      if (open) open.exitTime = exitTime;
       reservation.status = "completed";
-      session.exitTime = exitTime;
+      const session = sessions
+        .filter((s) => s.reservationId === id)
+        .sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime())[0];
+      if (!session) {
+        throw new Error(
+          `Reservation ${id} was active without a parking session`,
+        );
+      }
       return {
         ok: true,
         value: { reservation: { ...reservation }, session: { ...session } },
