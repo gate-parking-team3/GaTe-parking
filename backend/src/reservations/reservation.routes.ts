@@ -199,6 +199,97 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
     }),
   );
 
+  // US 11: edit an upcoming reservation (window, vehicle, spot). Its owner or an admin.
+  router.patch(
+    "/:id",
+    handle(async (req, res) => {
+      const reservation = await loadReservation(req, res, store, {
+        adminAllowed: true,
+        forbidden: "You can only edit your own reservation",
+      });
+      if (!reservation) return;
+      const at = now();
+      if (reservation.status !== "reserved" || reservation.startTime <= at) {
+        res
+          .status(409)
+          .json({ error: "Only an upcoming reservation can be edited" });
+        return;
+      }
+
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      if (EDITABLE_FIELDS.every((field) => body[field] === undefined)) {
+        res.status(400).json({
+          error: "Send at least one of startTime, endTime, vehicleId, spotId",
+        });
+        return;
+      }
+      // Missing fields keep their current value, then the merged result is checked like a new booking.
+      const merged = (
+        field: (typeof EDITABLE_FIELDS)[number],
+        current: string,
+      ) => (body[field] === undefined ? current : body[field]);
+      const vehicleId = readId(merged("vehicleId", reservation.vehicleId));
+      const spotId = readId(merged("spotId", reservation.spotId));
+      if (!vehicleId || !spotId) {
+        res.status(400).json({ error: "Invalid vehicle or spot id" });
+        return;
+      }
+      const window = parseTimeWindow(
+        merged("startTime", reservation.startTime.toISOString()),
+        merged("endTime", reservation.endTime.toISOString()),
+        at,
+      );
+      if (!window.ok) {
+        res.status(400).json({ error: window.error });
+        return;
+      }
+
+      const [vehicle, spot] = await Promise.all([
+        vehicles.findById(vehicleId),
+        store.findSpot(spotId),
+      ]);
+      // The vehicle must be the reservation owner's, also when an admin edits it.
+      if (!vehicle || vehicle.userId !== reservation.userId) {
+        res.status(404).json({ error: "Vehicle not found" });
+        return;
+      }
+      if (!spot) {
+        res.status(404).json({ error: "Parking spot not found" });
+        return;
+      }
+      if (
+        !spotSuitsVehicle(spot, vehicle, { disabledAllowed: DISABLED_ALLOWED })
+      ) {
+        res
+          .status(422)
+          .json({ error: "This spot is not suitable for the vehicle" });
+        return;
+      }
+
+      const outcome = await store.updateIfFree(
+        reservation,
+        {
+          vehicleId,
+          spotId,
+          lotId: spot.lotId,
+          startTime: window.value.start,
+          endTime: window.value.end,
+        },
+        at,
+      );
+      if (outcome.ok) {
+        res.json(outcome.value);
+        return;
+      }
+      res.status(409).json({
+        error:
+          outcome.conflict === "taken"
+            ? "The spot or the vehicle is already booked for this time"
+            : "The reservation changed in the meantime, reload it and try again",
+      });
+    }),
+  );
+
   // US 3: check in. Only the owner, only a `reserved` reservation, only inside its window.
   router.post(
     "/:id/start",
@@ -240,6 +331,14 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
 
   return router;
 }
+
+// US 11: what PATCH /api/reservations/:id may change.
+const EDITABLE_FIELDS = [
+  "startTime",
+  "endTime",
+  "vehicleId",
+  "spotId",
+] as const;
 
 type Access = { adminAllowed: boolean; forbidden: string };
 

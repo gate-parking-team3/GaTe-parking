@@ -42,6 +42,22 @@ export type ParkingConflict = "wrong-status" | "already-parked";
 export type ParkingOutcome =
   { ok: true; value: ParkingResult } | { ok: false; conflict: ParkingConflict };
 
+/** US 11: what an edit writes. The route merges the request with the reservation and validates it. */
+export type ReservationChanges = Pick<
+  ReservationRecord,
+  "vehicleId" | "spotId" | "lotId" | "startTime" | "endTime"
+>;
+
+/**
+ * Why an edit was refused: the reservation is no longer `reserved` (e.g. it was started meanwhile),
+ * or the spot or the vehicle is taken in the new window.
+ */
+export type UpdateConflict = "wrong-status" | "taken";
+
+export type UpdateOutcome =
+  | { ok: true; value: ReservationRecord }
+  | { ok: false; conflict: UpdateConflict };
+
 // Storage boundary, so the routes can be tested without MongoDB
 // (see memory-reservation-store.ts).
 export interface ReservationStore {
@@ -66,6 +82,17 @@ export interface ReservationStore {
     input: NewReservation,
     now: Date,
   ): Promise<ReservationRecord | null>;
+  /**
+   * US 11: writes the changes to a `reserved` reservation, unless another blocking reservation or a
+   * parking session takes the spot or the vehicle in the new window (the reservation itself does not count).
+   * `reservation` is the copy the caller read: if it has changed since (a check-in or another edit),
+   * nothing is written and the result is `wrong-status`. Safe when it races with a booking.
+   */
+  updateIfFree(
+    reservation: ReservationRecord,
+    changes: ReservationChanges,
+    now: Date,
+  ): Promise<UpdateOutcome>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
   /**
@@ -87,6 +114,11 @@ const overlapping = ({ start, end }: TimeWindow) => ({
 });
 
 const OPEN = { $type: "null" } as const;
+
+// US 11 edit holds (see updateIfFree) block their slot like any reservation but are never read as one.
+const NOT_HOLD = { holdExpiresAt: { $exists: false } } as const;
+// Long enough for one edit. A hold left behind by a crash is removed by the TTL index soon after.
+const HOLD_MS = 60 * 1000;
 
 // A session blocks its spot from entry until exit. An open session (exitTime null) blocks windows that start by `now`:
 // the car is there now, but nobody knows when it leaves. Its active reservation already holds the
@@ -170,8 +202,74 @@ export const mongoReservationStore: ReservationStore = {
     return toReservation(doc.toObject());
   },
 
+  async updateIfFree(reservation, changes, now) {
+    // The reservation exactly as the caller read it. Status first, like the memory store.
+    const unchanged = {
+      _id: reservation.id,
+      status: "reserved" as const,
+      vehicleId: reservation.vehicleId,
+      spotId: reservation.spotId,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      ...NOT_HOLD,
+    };
+    if (!(await ReservationModel.exists(unchanged))) {
+      return { ok: false, conflict: "wrong-status" };
+    }
+
+    const window = { start: changes.startTime, end: changes.endTime };
+    const takenExcept = (...ids: unknown[]) => ({
+      ...overlapping(window),
+      $or: [{ spotId: changes.spotId }, { vehicleId: changes.vehicleId }],
+      _id: { $nin: ids },
+    });
+    const isParked = () =>
+      ParkingSessionModel.exists({
+        spotId: changes.spotId,
+        ...sessionOverlapping(window, now),
+      });
+    if (
+      (await ReservationModel.exists(takenExcept(reservation.id))) ||
+      (await isParked())
+    ) {
+      return { ok: false, conflict: "taken" };
+    }
+
+    // Like createIfFree, but without ever undoing a move: hold the new slot, look for a rival,
+    // and only then move the reservation. Until then it keeps its old slot, so backing out only
+    // frees space and never double-books the old slot.
+    const hold = await ReservationModel.create({
+      userId: reservation.userId,
+      ...changes,
+      status: "reserved",
+      holdExpiresAt: new Date(now.getTime() + HOLD_MS),
+    });
+    try {
+      if (
+        await ReservationModel.exists(takenExcept(reservation.id, hold._id))
+      ) {
+        return { ok: false, conflict: "taken" };
+      }
+      // Matching the copy the caller read refuses the edit if a check-in or another edit came first.
+      const updated = await ReservationModel.findOneAndUpdate(
+        unchanged,
+        changes,
+        { new: true },
+      ).lean();
+      if (!updated) return { ok: false, conflict: "wrong-status" };
+      return { ok: true, value: toReservation(updated) };
+    } finally {
+      // The outcome above stands even if this fails: the TTL index removes the hold later.
+      await ReservationModel.deleteOne({ _id: hold._id }).catch(
+        (error: unknown) => {
+          console.error("Could not remove an edit hold", error);
+        },
+      );
+    }
+  },
+
   async listByUser(userId) {
-    const docs = await ReservationModel.find({ userId })
+    const docs = await ReservationModel.find({ userId, ...NOT_HOLD })
       .sort({ startTime: -1 })
       .lean();
     return docs.map(toReservation);
@@ -179,7 +277,7 @@ export const mongoReservationStore: ReservationStore = {
 
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
-    const doc = await ReservationModel.findById(id).lean();
+    const doc = await ReservationModel.findOne({ _id: id, ...NOT_HOLD }).lean();
     return doc ? toReservation(doc) : null;
   },
 
@@ -187,6 +285,7 @@ export const mongoReservationStore: ReservationStore = {
     const reservation = await ReservationModel.findOne({
       _id: id,
       status: "reserved",
+      ...NOT_HOLD,
     }).lean();
     if (!reservation) return { ok: false, conflict: "wrong-status" };
 

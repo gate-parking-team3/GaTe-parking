@@ -1,6 +1,6 @@
-# Parking lots and reservations (US 4, US 3)
+# Parking lots and reservations (US 4, US 3, US 11)
 
-Booking a parking spot for a vehicle and a time window (US 4), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
+Booking a parking spot for a vehicle and a time window (US 4), editing an upcoming booking (US 11), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
 
 ```json
 {
@@ -63,6 +63,21 @@ The caller's reservations in every status, latest `startTime` first: `200` and a
 ### `GET /api/reservations/:id`
 
 One reservation, for its owner or an admin: `200`. `400` malformed id, `403` someone else's, `404` not found.
+
+### `PATCH /api/reservations/:id` (US 11)
+
+Edit an upcoming reservation. Its owner or an admin can call it, only while the reservation is `reserved` and its `startTime` is still in the future.
+
+Body: any of `{ startTime, endTime, vehicleId, spotId }`. Missing fields keep their current value. The merged result is checked like a new booking: valid time window, a vehicle of the reservation's owner (also when an admin edits it), a spot that suits the vehicle. The lot is taken from the spot. The reservation's own current window never conflicts with the edit.
+
+- `200` the updated reservation.
+- `400` empty body (none of the four fields), invalid id or time window.
+- `403` someone else's reservation.
+- `404` reservation or spot not found, or a vehicle that is not the owner's.
+- `422` the spot does not suit the vehicle.
+- `409` the reservation is not upcoming and `reserved` (started, completed, cancelled or its start has passed), the spot or the vehicle is already booked by another reservation for an overlapping window, the spot still has a parked car (for a window starting by now), or the reservation changed while it was being saved, e.g. by a check-in or another edit (reload and retry).
+
+The reservation keeps its old slot until the new one is secured: the backend first holds the new slot with a temporary reservation, checks for a rival booking, then moves the reservation and removes the hold. If two requests race for the same slot, at least one gets `409`, as for `POST`. The edit is checked against the reservation as the request read it, so an edit never silently overwrites another one saved meanwhile. Holds have a `holdExpiresAt` field, are never returned by the API and cannot be started or edited; a hold left behind by a crash is deleted by a TTL index about a minute later.
 
 ### `POST /api/reservations/:id/start` (US 3)
 
