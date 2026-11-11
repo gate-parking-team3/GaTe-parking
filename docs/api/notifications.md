@@ -6,13 +6,13 @@ The backend starts a scheduler after the database connects and checks events onc
 
 ## Events
 
-| Type | Condition | Message recipient |
-| --- | --- | --- |
-| `start_soon` | A `reserved` reservation starts within the next 30 minutes | Reservation owner |
-| `end_soon` | A `reserved` or `active` reservation ends within the next 15 minutes | Reservation owner |
-| `cancelled` | A reservation's status is `cancelled` | Reservation owner |
-| `deleted` | US 6 deletes a reservation and invokes `notifyReservationDeleted` with the reservation snapshot | Former reservation owner |
-| `spot_unavailable` | During the reserved window, an open parking session on its spot belongs to a different reservation, or the spot is marked `occupied` without an open session | Reservation owner |
+| Type               | Condition                                                                                                                                                    | Message recipient        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| `start_soon`       | A `reserved` reservation starts within the next 30 minutes                                                                                                   | Reservation owner        |
+| `end_soon`         | A `reserved` or `active` reservation ends within the next 15 minutes                                                                                         | Reservation owner        |
+| `cancelled`        | A reservation's status is `cancelled`                                                                                                                        | Reservation owner        |
+| `deleted`          | US 6 deletes a reservation and invokes `notifyReservationDeleted` with the reservation snapshot                                                              | Former reservation owner |
+| `spot_unavailable` | During the reserved window, an open parking session on its spot belongs to a different reservation, or the spot is marked `occupied` without an open session | Reservation owner        |
 
 Each event type is stored at most once for each reservation, including across restarts. The scheduler does not modify spot availability or reservation statuses. It only creates notifications. `deleted` is event-driven because a deleted reservation cannot be discovered by polling the reservations table.
 
@@ -66,8 +66,8 @@ After a successful deletion, call:
 await notifyReservationDeleted(reservation);
 ```
 
-where `reservation` is the record loaded before deletion. The installer inserts this call if it detects US 6's `deleteIfUnchanged` route. If US 6 is added later, insert the call at the same location in the success branch before `res.status(204).end()`.
+where `reservation` is the record loaded before deletion. Insert the call in the success branch of the US 6 `DELETE /api/reservations/:id` route, before `res.status(204).end()`.
 
 ## Operational considerations
 
-The scheduler is started in `backend/src/server.ts`, not on each HTTP request. This is designed for **one backend process**; the MongoDB unique index still prevents duplicates if multiple instances perform the same check. Large deployments should replace polling of all cancelled reservations with a dedicated job queue. In-app notifications are durable; no external push delivery is attempted.
+The scheduler is started in `backend/src/server.ts`, not on each HTTP request. This is designed for **one backend process**; the MongoDB unique index still prevents duplicates if multiple instances perform the same check. Cancellations are picked up when the reservation was updated in the last two minutes, so a backend that is down for longer misses them. In-app notifications are durable; no external push delivery is attempted.

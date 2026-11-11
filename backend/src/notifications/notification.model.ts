@@ -37,12 +37,21 @@ const notificationSettingsSchema = new mongoose.Schema(
   { versionKey: false },
 );
 
-export type NotificationSchemaFields = InferSchemaType<typeof notificationSchema>;
-export type NotificationSettingsSchemaFields = InferSchemaType<typeof notificationSettingsSchema>;
+export type NotificationSchemaFields = InferSchemaType<
+  typeof notificationSchema
+>;
+export type NotificationSettingsSchemaFields = InferSchemaType<
+  typeof notificationSettingsSchema
+>;
 
 export const NotificationModel: Model<NotificationSchemaFields> =
-  (mongoose.models.Notification as Model<NotificationSchemaFields> | undefined) ??
+  (mongoose.models.Notification as
+    Model<NotificationSchemaFields> | undefined) ??
   mongoose.model<NotificationSchemaFields>("Notification", notificationSchema);
 export const NotificationSettingsModel: Model<NotificationSettingsSchemaFields> =
-  (mongoose.models.NotificationSettings as Model<NotificationSettingsSchemaFields> | undefined) ??
-  mongoose.model<NotificationSettingsSchemaFields>("NotificationSettings", notificationSettingsSchema);
+  (mongoose.models.NotificationSettings as
+    Model<NotificationSettingsSchemaFields> | undefined) ??
+  mongoose.model<NotificationSettingsSchemaFields>(
+    "NotificationSettings",
+    notificationSettingsSchema,
+  );

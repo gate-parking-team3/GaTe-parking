@@ -19,7 +19,10 @@ export type NotificationRecord = {
   // Deleted reservations may no longer have a detail page; clients should handle 404.
   reservationUrl: string;
 };
-export type NewNotification = Pick<NotificationRecord, "userId" | "reservationId" | "type" | "title" | "message">;
+export type NewNotification = Pick<
+  NotificationRecord,
+  "userId" | "reservationId" | "type" | "title" | "message"
+>;
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   start_soon: true,
@@ -37,7 +40,10 @@ export interface NotificationStore {
   list(userId: string): Promise<NotificationRecord[]>;
   markRead(userId: string, id: string, at: Date): Promise<boolean>;
   settings(userId: string): Promise<NotificationSettings>;
-  changeSettings(userId: string, patch: Partial<NotificationSettings>): Promise<NotificationSettings>;
+  changeSettings(
+    userId: string,
+    patch: Partial<NotificationSettings>,
+  ): Promise<NotificationSettings>;
   /** Respects preferences and inserts at most once per reservation and type. */
   publish(notification: NewNotification, at: Date): Promise<void>;
 }
@@ -50,7 +56,7 @@ function toRecord(doc: {
   title: string;
   message: string;
   createdAt: Date;
-  readAt: Date | null;
+  readAt?: Date | null;
 }): NotificationRecord {
   return {
     id: String(doc._id),
@@ -60,14 +66,18 @@ function toRecord(doc: {
     title: doc.title,
     message: doc.message,
     createdAt: doc.createdAt,
-    readAt: doc.readAt,
+    readAt: doc.readAt ?? null,
     reservationUrl: `/reservations/${doc.reservationId}`,
   };
 }
 
 export const mongoNotificationStore: NotificationStore = {
   async list(userId) {
-    return (await NotificationModel.find({ userId }).sort({ createdAt: -1, _id: -1 }).lean()).map(toRecord);
+    return (
+      await NotificationModel.find({ userId })
+        .sort({ createdAt: -1, _id: -1 })
+        .lean()
+    ).map(toRecord);
   },
   async markRead(userId, id, at) {
     if (!mongoose.isValidObjectId(id)) return false;
@@ -80,7 +90,9 @@ export const mongoNotificationStore: NotificationStore = {
   },
   async settings(userId) {
     const doc = await NotificationSettingsModel.findOne({ userId }).lean();
-    return Object.fromEntries(NOTIFICATION_TYPES.map((type) => [type, doc?.[type] ?? true])) as NotificationSettings;
+    return Object.fromEntries(
+      NOTIFICATION_TYPES.map((type) => [type, doc?.[type] ?? true]),
+    ) as NotificationSettings;
   },
   async changeSettings(userId, patch) {
     await NotificationSettingsModel.updateOne(
@@ -113,10 +125,14 @@ export function memoryNotificationStore(): NotificationStore {
   let nextId = 1;
   return {
     async list(userId) {
-      return notifications.filter((n) => n.userId === userId).map((n) => ({ ...n }));
+      return notifications
+        .filter((n) => n.userId === userId)
+        .map((n) => ({ ...n }));
     },
     async markRead(userId, id, at) {
-      const record = notifications.find((n) => n.userId === userId && n.id === id);
+      const record = notifications.find(
+        (n) => n.userId === userId && n.id === id,
+      );
       if (!record) return false;
       record.readAt = at;
       return true;
@@ -125,13 +141,28 @@ export function memoryNotificationStore(): NotificationStore {
       return { ...(settings.get(userId) ?? DEFAULT_NOTIFICATION_SETTINGS) };
     },
     async changeSettings(userId, patch) {
-      const next = { ...(settings.get(userId) ?? DEFAULT_NOTIFICATION_SETTINGS), ...patch };
+      const next = {
+        ...(settings.get(userId) ?? DEFAULT_NOTIFICATION_SETTINGS),
+        ...patch,
+      };
       settings.set(userId, next);
       return { ...next };
     },
     async publish(notification, at) {
-      if (!(settings.get(notification.userId) ?? DEFAULT_NOTIFICATION_SETTINGS)[notification.type]) return;
-      if (notifications.some((n) => n.reservationId === notification.reservationId && n.type === notification.type)) return;
+      if (
+        !(settings.get(notification.userId) ?? DEFAULT_NOTIFICATION_SETTINGS)[
+          notification.type
+        ]
+      )
+        return;
+      if (
+        notifications.some(
+          (n) =>
+            n.reservationId === notification.reservationId &&
+            n.type === notification.type,
+        )
+      )
+        return;
       notifications.unshift({
         ...notification,
         id: (nextId++).toString(16).padStart(24, "0"),
