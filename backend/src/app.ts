@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import mongoose from "mongoose";
 import { employeesRouter } from "./admin/employees.routes.js";
 import { authRouter } from "./auth/auth.routes.js";
+import { createNotificationRouter } from "./notifications/notification.routes.js";
 import { requireAuth, requireRole } from "./auth/middleware.js";
 import {
   apiLimiter,
@@ -64,6 +65,7 @@ export function createApp({
       "/api/vehicles",
       "/api/lots",
       "/api/reservations",
+      "/api/notifications",
       "/api/dev",
     ],
     apiLimiter(rateLimits.api),
@@ -91,6 +93,11 @@ export function createApp({
     createVehicleRouter({ usage: mongoVehicleUsage(users) }),
   );
   app.use("/api/lots", requireAuth(users, jwtSecret), createLotRouter());
+  app.use(
+    "/api/notifications",
+    requireAuth(users, jwtSecret),
+    createNotificationRouter(),
+  );
   app.use(
     "/api/reservations",
     requireAuth(users, jwtSecret),
