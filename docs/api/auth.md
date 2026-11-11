@@ -24,10 +24,10 @@ Errors have the shape `{ "error": "<message>" }`. A malformed JSON body gets 400
 }
 ```
 
-| Field    | Values                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `role`   | `user`, `admin`                                                                            |
-| `status` | `pending` (registered, waiting for approval), `active` (may sign in), `disabled` (blocked) |
+| Field    | Values                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `role`   | `user`, `admin`                                                                                                  |
+| `status` | `pending` (invited and not yet activated, or waiting for approval), `active` (may sign in), `disabled` (blocked) |
 
 The password hash is never returned.
 
@@ -104,7 +104,13 @@ Admins only (401 when not signed in, 403 for non-admins). Send either a `name` o
 { "firstName": "Jana", "lastName": "Nova", "email": "jana@gate.cz" }
 ```
 
-Names must be 2–150 characters after trimming. The email must be valid and at most 254 characters; it is trimmed and lower-cased. On success, returns 201 with `{ "employee": User }`. Returns 400 with `{ "error": "Valid name and email are required" }` for invalid input, or 409 with `{ "error": "Email already registered" }` when the email is already in use.
+The full name (`name`, or `firstName` and `lastName` joined with a space) must be 2–150 characters after trimming; when `name` is sent, `firstName` and `lastName` are ignored. The email must be valid and at most 254 characters; it is trimmed and lower-cased. The new employee gets role `user` and status `pending` until they activate the account.
+
+| Status | Body                                               |
+| ------ | -------------------------------------------------- |
+| 201    | `{ "employee": User }`                             |
+| 400    | `{ "error": "Valid name and email are required" }` |
+| 409    | `{ "error": "Email already registered" }`          |
 
 The API does not send invitation emails yet. In non-production environments, an admin can retrieve the invitation from the development-only inbox.
 
@@ -116,8 +122,14 @@ Public endpoint. Activate an account with the 64-character hexadecimal invitatio
 { "token": "<invitation-token>", "password": "a-strong-password" }
 ```
 
-The password must meet the length limits described under [First admin](#first-admin). Returns `{ "user": User }` on success. Returns 400 with `{ "error": "Invalid token or password (8+ characters, max 72 bytes)" }` for invalid input, or `{ "error": "Activation link is invalid, expired or already used" }` when the invitation cannot be used.
+The password must meet the length limits described under [First admin](#first-admin). Activation does not sign the user in; call `POST /api/auth/login` afterwards.
+
+| Status | Body                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| 200    | `{ "user": User }`                                                                                            |
+| 400    | `{ "error": "Invalid token or password (8+ characters, max 72 bytes)" }`                                      |
+| 400    | `{ "error": "Activation link is invalid, expired or already used" }` (also when the account is not `pending`) |
 
 ### `GET /api/dev/invitations/:email`
 
-Development only; this endpoint is not mounted in production. Requires an admin bearer token. Returns `{ "activationUrl": "...", "expiresAt": "..." }`, or 404 with `{ "error": "Invitation not found" }` if there is no invitation in the in-memory development inbox. Use the token from the activation URL in the `POST /api/auth/activate` request.
+Development only; this endpoint is not mounted in production. Requires an admin bearer token. Returns `{ "activationUrl": "...", "expiresAt": "..." }`, or 404 with `{ "error": "Invitation not found" }` if there is no invitation in the in-memory development inbox. The inbox lives in server memory: it is empty after a restart, and an entry stays after the invitation is used. Use the token from the activation URL in the `POST /api/auth/activate` request.
