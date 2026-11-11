@@ -1,15 +1,18 @@
 import { NavLink, Outlet } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
-const navItems = [
-  { to: "/", label: "Parking" },
-  { to: "/reservations", label: "Reservations" },
-  { to: "/vehicles", label: "Vehicles" },
-  { to: "/history", label: "History" },
-];
-
 export default function RootLayout() {
   const { user, logout } = useAuth();
+
+  const navItems = [
+    { to: "/", label: "Parking" },
+    { to: "/reservations", label: "Reservations" },
+    { to: "/vehicles", label: "Vehicles" },
+    { to: "/history", label: "History" },
+    ...(user?.role === "admin"
+      ? [{ to: "/admin/employees", label: "Employees" }]
+      : []),
+  ];
 
   return (
     <>

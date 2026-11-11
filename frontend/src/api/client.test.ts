@@ -109,6 +109,24 @@ describe("apiClient", () => {
       setToken(null);
     });
 
+    it("does not notify listeners when /auth/activate returns 401", async () => {
+      mockFetch(401, { error: "Invalid activation token" });
+      setToken("some-token");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(
+        apiClient.post("/auth/activate", {
+          token: "a".repeat(64),
+          password: "password123",
+        }),
+      ).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+      setToken(null);
+    });
+
     it("does not notify listeners on 403 forbidden responses", async () => {
       mockFetch(403, { error: "Not allowed" });
       setToken("valid-token");

@@ -84,8 +84,12 @@ async function request<T>(
       : await response.json().catch(() => undefined);
 
   if (!response.ok) {
-    // Only authenticated protected requests (not the public login endpoint) trigger session invalidation.
-    if (response.status === 401 && path !== "/auth/login") {
+    // Only authenticated protected requests (not public auth endpoints) trigger session invalidation.
+    if (
+      response.status === 401 &&
+      path !== "/auth/login" &&
+      path !== "/auth/activate"
+    ) {
       notifyUnauthorized(token);
     }
     const message =

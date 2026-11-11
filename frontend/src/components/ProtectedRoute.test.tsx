@@ -162,4 +162,64 @@ describe("ProtectedRoute", () => {
     expect(await screen.findByText("Login Page")).toBeInTheDocument();
     expect(getToken()).toBeNull();
   });
+
+  describe("Role-based access", () => {
+    it("renders Access Denied when signed-in user does not have requiredRole", async () => {
+      setToken("valid-token");
+      vi.spyOn(authApi, "me").mockResolvedValue({
+        user: { ...mockUser, role: "user" },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/admin/employees"]}>
+          <AuthProvider>
+            <Routes>
+              <Route path="login" element={<TestLoginTarget />} />
+              <Route element={<ProtectedRoute requiredRole="admin" />}>
+                <Route
+                  path="admin/employees"
+                  element={<h1>Admin Secret Panel</h1>}
+                />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>,
+      );
+
+      expect(
+        await screen.findByRole("heading", { name: "Access Denied" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("You do not have permission to access this page."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Admin Secret Panel")).not.toBeInTheDocument();
+      // Crucial: User is NOT logged out
+      expect(getToken()).toBe("valid-token");
+    });
+
+    it("renders protected child content when signed-in user has requiredRole", async () => {
+      setToken("valid-token");
+      vi.spyOn(authApi, "me").mockResolvedValue({
+        user: { ...mockUser, role: "admin" },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/admin/employees"]}>
+          <AuthProvider>
+            <Routes>
+              <Route path="login" element={<TestLoginTarget />} />
+              <Route element={<ProtectedRoute requiredRole="admin" />}>
+                <Route
+                  path="admin/employees"
+                  element={<h1>Admin Secret Panel</h1>}
+                />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByText("Admin Secret Panel")).toBeInTheDocument();
+    });
+  });
 });

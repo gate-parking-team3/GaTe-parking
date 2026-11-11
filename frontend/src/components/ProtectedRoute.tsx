@@ -1,7 +1,14 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
+import type { Role } from "../types/auth";
 
-export default function ProtectedRoute() {
+type ProtectedRouteProps = {
+  requiredRole?: Role;
+};
+
+export default function ProtectedRoute({
+  requiredRole,
+}: ProtectedRouteProps = {}) {
   const { user, isRestoring, restorationError, retryRestoration } = useAuth();
   const location = useLocation();
 
@@ -30,6 +37,17 @@ export default function ProtectedRoute() {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return (
+      <div className="access-denied" role="alert">
+        <h1 className="page-heading">Access Denied</h1>
+        <p className="page-description">
+          You do not have permission to access this page.
+        </p>
+      </div>
+    );
   }
 
   return <Outlet />;

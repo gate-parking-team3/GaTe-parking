@@ -65,4 +65,30 @@ describe("authApi", () => {
       body: undefined,
     });
   });
+
+  it("posts activation credentials to /auth/activate", async () => {
+    const mockUser = {
+      id: "u2",
+      email: "jana@gate.cz",
+      name: "Jana",
+      role: "user" as const,
+      status: "active" as const,
+    };
+    const fetchMock = mockFetch(200, { user: mockUser });
+
+    const res = await authApi.activate({
+      token: "a".repeat(64),
+      password: "password123",
+    });
+
+    expect(res).toEqual({ user: mockUser });
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: "a".repeat(64),
+        password: "password123",
+      }),
+    });
+  });
 });

@@ -78,6 +78,20 @@ describe("Anonymous user experience", () => {
     ).toBeInTheDocument();
   });
 
+  it("redirects anonymous visitor from /admin/employees to /login", async () => {
+    renderApp("/admin/employees");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+    ).toBeInTheDocument();
+  });
+
+  it("allows anonymous visitor to open /activate without redirecting to /login", () => {
+    renderApp("/activate");
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Account Activation" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows login page when initial session restoration returns 401 via fetch boundary", async () => {
     localStorage.setItem("gate-parking-token", "expired-user-token");
     const fetchMock = vi.fn().mockResolvedValue(
@@ -157,6 +171,57 @@ describe("Authenticated user experience", () => {
       "href",
       "/history",
     );
+    expect(
+      within(nav).queryByRole("link", { name: "Employees" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Access Denied and does not fetch employees when regular user visits /admin/employees", async () => {
+    const listSpy = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.includes("/api/admin/employees")) {
+          listSpy();
+        }
+        return Promise.resolve(new Response(JSON.stringify({})));
+      }),
+    );
+
+    renderApp("/admin/employees");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access Denied" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("You do not have permission to access this page."),
+    ).toBeInTheDocument();
+    expect(listSpy).not.toHaveBeenCalled();
+  });
+
+  it("renders Employees link and allows access for administrator", async () => {
+    const adminUser: User = { ...mockUser, role: "admin", name: "Eva Admin" };
+    vi.spyOn(authApi, "me").mockResolvedValue({ user: adminUser });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ employees: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderApp("/admin/employees");
+
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(
+      within(nav).getByRole("link", { name: "Employees" }),
+    ).toHaveAttribute("href", "/admin/employees");
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Employee Management",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("renders the parking availability page at /", async () => {
