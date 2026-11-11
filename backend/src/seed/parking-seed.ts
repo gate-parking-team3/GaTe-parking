@@ -1,6 +1,5 @@
 // Generates synthetic parking data (lots, spots, reservations, sessions)
 // Usage: npm run seed:parking -w backend
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import mongoose from "mongoose";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
