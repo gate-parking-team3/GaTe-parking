@@ -121,7 +121,7 @@ Check-out ("End Parking"). No body. Owner only, and only while the reservation i
 
 ### `DELETE /api/reservations/:id` (US 6)
 
-Delete a reservation permanently. Its owner or an admin can call it, for any reservation that is not in progress (`reserved`, `completed` or `cancelled`). The spot and the vehicle are free for that window right away. Closed parking sessions of a completed reservation are kept.
+Delete a reservation permanently. Its owner or an admin can call it, for any reservation that is not in progress (`reserved`, `completed` or `cancelled`). The spot and the vehicle are free for that window right away. Closed parking sessions of a completed reservation are kept. The owner gets a `deleted` in-app notification (US 8, see [notifications.md](notifications.md)).
 
 - `204` deleted, no body.
 - `400` malformed id. `403` someone else's reservation. `404` not found.

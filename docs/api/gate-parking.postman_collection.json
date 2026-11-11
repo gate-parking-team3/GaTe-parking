@@ -98,6 +98,10 @@
     {
       "key": "nowEnd",
       "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
     }
   ],
   "item": [
@@ -1342,6 +1346,770 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Week 8: delete reservations and notifications",
+      "description": "US 6 delete a reservation and US 8 in-app notifications. Logs in by itself, so this folder can be run alone. Needs the sample data (npm run seed -w backend). The scheduled reminders (start_soon, end_soon, spot_unavailable) need a minute of waiting, so they are not part of this run; the deleted notification is created right away.",
+      "item": [
+        {
+          "name": "37. Login (Anna, so this folder runs on its own)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Signs in and saves the JWT token into the collection variable 'token'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// New booking window on every run, so a re-run never clashes with the previous run's booking.",
+                  "const day = 1 + Math.floor(Math.random() * 300);",
+                  "const hour = 6 + Math.floor(Math.random() * 12);",
+                  "const s = new Date(Date.now() + day * 864e5); s.setUTCHours(hour, 0, 0, 0);",
+                  "pm.collectionVariables.set('futureStart', s.toISOString());",
+                  "pm.collectionVariables.set('futureEnd', new Date(s.getTime() + 2 * 36e5).toISOString());",
+                  "pm.collectionVariables.set('futureEndLater', new Date(s.getTime() + 3 * 36e5).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "38. Admin login (so this folder runs on its own)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.expect(d.user.role).to.eql('admin');",
+                  "pm.collectionVariables.set('adminToken', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "39. List my vehicles (pick seeded car)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"]
+            },
+            "description": "Picks Anna's seeded Skoda Superb (large, combustion) for the reservation requests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const car = pm.response.json().find(v => v.licensePlate === '6AG1234');",
+                  "pm.test('Seeded car found (run npm run seed -w backend)', () => pm.expect(car).to.exist);",
+                  "pm.collectionVariables.set('seededVehicleId', car.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "40. List parking lots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const lots = pm.response.json();",
+                  "pm.test('Has lots', () => pm.expect(lots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('lotId', lots.find(l => l.name === 'Main lot').id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41. Available spots (future window)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{futureStart}}&end={{futureEnd}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{futureStart}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{futureEnd}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json().spots;",
+                  "pm.test('Offers at least one spot', () => pm.expect(spots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('spotId', spots[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "42. Reserve a spot to delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{futureStart}}\",\n  \"endTime\": \"{{futureEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.expect(r.status).to.eql('reserved');",
+                  "pm.collectionVariables.set('reservationId', r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "43. Notification settings (all on by default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "settings"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Has every type', () => pm.expect(Object.keys(s)).to.have.members(['start_soon', 'end_soon', 'cancelled', 'deleted', 'spot_unavailable']));",
+                  "pm.test('Deleted notifications are on', () => pm.expect(s.deleted).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "44. Delete the reservation (US 6)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "45. Delete it again (expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "46. Notifications include the deletion (US 8)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const n = pm.response.json().find((x) => x.reservationId === pm.collectionVariables.get('reservationId') && x.type === 'deleted');",
+                  "pm.test('A deleted notification exists', () => pm.expect(n).to.be.an('object'));",
+                  "pm.test('It is unread', () => pm.expect(n.readAt).to.eql(null));",
+                  "pm.collectionVariables.set('notificationId', n.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "47. Mark the notification as read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "48. Mark it read as the admin (expect 404, not theirs)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "49. Change settings with an unknown key (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "settings"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"foo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "50. Notifications without token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "51. Available spots (now)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{nowStart}}&end={{nowEnd}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{nowStart}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{nowEnd}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json().spots;",
+                  "pm.test('Offers at least one spot', () => pm.expect(spots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('spotId', spots[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "52. Reserve a spot for now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{nowStart}}\",\n  \"endTime\": \"{{nowEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('nowReservationId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "53. Start parking (check in)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}", "start"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().reservation.status).to.eql('active');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "54. Delete while parking (expect 409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "55. End parking (check out)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}", "end"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().reservation.status).to.eql('completed');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "56. Delete the completed reservation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{nowReservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{nowReservationId}}"]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "57. Available spots (future window again)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lots/{{lotId}}/available-spots?vehicleId={{seededVehicleId}}&start={{futureStart}}&end={{futureEnd}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lots", "{{lotId}}", "available-spots"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{seededVehicleId}}"
+                },
+                {
+                  "key": "start",
+                  "value": "{{futureStart}}"
+                },
+                {
+                  "key": "end",
+                  "value": "{{futureEnd}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const spots = pm.response.json().spots;",
+                  "pm.test('Offers at least one spot', () => pm.expect(spots.length).to.be.above(0));",
+                  "pm.collectionVariables.set('spotId', spots[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "58. Reserve a spot for the admin to delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations"]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{seededVehicleId}}\",\n  \"spotId\": \"{{spotId}}\",\n  \"startTime\": \"{{futureStart}}\",\n  \"endTime\": \"{{futureEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.expect(r.status).to.eql('reserved');",
+                  "pm.collectionVariables.set('reservationId', r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "59. Admin deletes a user's reservation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservations", "{{reservationId}}"]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
                 ]
               }
             }
