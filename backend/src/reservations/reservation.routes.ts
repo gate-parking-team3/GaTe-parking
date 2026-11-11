@@ -16,6 +16,7 @@ import {
   type ReservationStore,
 } from "./reservation.store.js";
 import type { ReservationRecord } from "../parks/reservation.types.js";
+import { notifyReservationDeleted } from "../notifications/notification.worker.js";
 
 const ID_PATTERN = /^[a-fA-F0-9]{24}$/;
 
@@ -23,12 +24,15 @@ type Deps = {
   store: ReservationStore;
   vehicles: VehicleRepository;
   now: () => Date;
+  // US 8: tells the owner that their reservation was deleted.
+  onDeleted: (reservation: ReservationRecord) => Promise<void>;
 };
 
 const defaults: Deps = {
   store: mongoReservationStore,
   vehicles: mongoVehicleRepository,
   now: () => new Date(),
+  onDeleted: (reservation) => notifyReservationDeleted(reservation),
 };
 
 // Users have no "disabled parking" entitlement yet, so nobody is offered disabled spots.
@@ -107,7 +111,7 @@ export function createLotRouter(deps: Partial<Deps> = {}): Router {
 
 /** Mounted at /api/reservations. Needs requireAuth in front. */
 export function createReservationRouter(deps: Partial<Deps> = {}): Router {
-  const { store, vehicles, now } = { ...defaults, ...deps };
+  const { store, vehicles, now, onDeleted } = { ...defaults, ...deps };
   const router = Router();
 
   // US 4: book a spot for a vehicle and a time window.
@@ -343,6 +347,12 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
           ? "parked"
           : await store.deleteIfUnchanged(reservation);
       if (outcome === "deleted") {
+        // The reservation is gone either way, so a failed notification does not fail the request.
+        try {
+          await onDeleted(reservation);
+        } catch (error) {
+          console.error("Reservation deleted notification failed", error);
+        }
         res.status(204).end();
         return;
       }

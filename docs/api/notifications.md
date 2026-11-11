@@ -60,13 +60,7 @@ Body: one or more valid notification-type fields with **boolean** values, e.g. `
 
 ## Integration with US 6
 
-After a successful deletion, call:
-
-```ts
-await notifyReservationDeleted(reservation);
-```
-
-where `reservation` is the record loaded before deletion. Insert the call in the success branch of the US 6 `DELETE /api/reservations/:id` route, before `res.status(204).end()`.
+`DELETE /api/reservations/:id` calls `notifyReservationDeleted` with the reservation it loaded, right after a successful delete. If that fails, the error is logged and the delete still returns `204`.
 
 ## Operational considerations
 

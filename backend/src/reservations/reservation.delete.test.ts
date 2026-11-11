@@ -60,6 +60,9 @@ function appAs(userId?: string, role: "user" | "admin" = "user") {
       store,
       vehicles: unusedVehicles,
       now: () => NOW,
+      onDeleted: async (reservation) => {
+        notified.push(reservation.id);
+      },
     }),
   );
   return app;
@@ -71,7 +74,10 @@ const remove = (
   role: "user" | "admin" = "user",
 ) => request(appAs(userId, role)).delete(`/api/reservations/${rid}`);
 
+let notified: string[];
+
 beforeEach(() => {
+  notified = [];
   store = memoryReservationStore({ reservations: [booking()] });
 });
 
@@ -83,6 +89,7 @@ describe("DELETE /api/reservations/:id (US 6)", () => {
     expect(await store.findById(RESERVATION)).toBeNull();
     expect(await store.listByUser(OWNER)).toEqual([]);
     expect((await remove(OWNER)).status).toBe(404);
+    expect(notified).toEqual([RESERVATION]);
   });
 
   it("lets an administrator delete another user's reservation", async () => {
@@ -97,6 +104,7 @@ describe("DELETE /api/reservations/:id (US 6)", () => {
       error: "You can only delete your own reservation",
     });
     expect(await store.findById(RESERVATION)).toEqual(booking());
+    expect(notified).toEqual([]);
   });
 
   it("rejects anonymous callers, bad ids and absent bookings", async () => {
@@ -224,5 +232,27 @@ describe("DELETE /api/reservations/:id (US 6)", () => {
     expect((await store.findById(RESERVATION))?.endTime.toISOString()).toBe(
       "2026-11-10T12:00:00.000Z",
     );
+  });
+
+  it("still deletes when the notification fails", async () => {
+    const app = express();
+    app.use((req, _res, next) => {
+      Object.assign(req, { user: { id: OWNER, role: "user" } });
+      next();
+    });
+    app.use(
+      "/api/reservations",
+      createReservationRouter({
+        store,
+        vehicles: unusedVehicles,
+        now: () => NOW,
+        onDeleted: () => Promise.reject(new Error("notifications down")),
+      }),
+    );
+    const response = await request(app).delete(
+      `/api/reservations/${RESERVATION}`,
+    );
+    expect(response.status).toBe(204);
+    expect(await store.findById(RESERVATION)).toBeNull();
   });
 });
