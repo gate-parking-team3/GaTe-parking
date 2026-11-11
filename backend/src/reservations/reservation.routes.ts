@@ -329,6 +329,32 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
     }),
   );
 
+  // US 6: delete a reservation that is not in progress. Its owner or an admin.
+  router.delete(
+    "/:id",
+    handle(async (req, res) => {
+      const reservation = await loadReservation(req, res, store, {
+        adminAllowed: true,
+        forbidden: "You can only delete your own reservation",
+      });
+      if (!reservation) return;
+      const outcome =
+        reservation.status === "active"
+          ? "parked"
+          : await store.deleteIfUnchanged(reservation);
+      if (outcome === "deleted") {
+        res.status(204).end();
+        return;
+      }
+      res.status(409).json({
+        error:
+          outcome === "parked"
+            ? "Parking is in progress, end it before deleting the reservation"
+            : "The reservation changed in the meantime, reload it and try again",
+      });
+    }),
+  );
+
   return router;
 }
 

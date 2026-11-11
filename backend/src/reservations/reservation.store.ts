@@ -54,6 +54,12 @@ export type ReservationChanges = Pick<
  */
 export type UpdateConflict = "wrong-status" | "taken";
 
+/**
+ * US 6: what a delete did. `changed`: the reservation was edited, started or removed since the
+ * caller read it. `parked`: it has an open parking session, so parking is in progress.
+ */
+export type DeleteOutcome = "deleted" | "changed" | "parked";
+
 export type UpdateOutcome =
   | { ok: true; value: ReservationRecord }
   | { ok: false; conflict: UpdateConflict };
@@ -93,6 +99,11 @@ export interface ReservationStore {
     changes: ReservationChanges,
     now: Date,
   ): Promise<UpdateOutcome>;
+  /**
+   * US 6: removes the reservation if it is still exactly as the caller read it and has no open
+   * parking session. Its spot and vehicle are free for that window right away.
+   */
+  deleteIfUnchanged(reservation: ReservationRecord): Promise<DeleteOutcome>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
   /**
@@ -266,6 +277,29 @@ export const mongoReservationStore: ReservationStore = {
         },
       );
     }
+  },
+
+  async deleteIfUnchanged(reservation) {
+    // A check-in opens its session before switching the status (startParking), so look for it first.
+    if (
+      await ParkingSessionModel.exists({
+        reservationId: reservation.id,
+        exitTime: OPEN,
+      })
+    ) {
+      return "parked";
+    }
+    // Matching the copy the caller read refuses the delete if a check-in or an edit came first.
+    const { deletedCount } = await ReservationModel.deleteOne({
+      _id: reservation.id,
+      status: { $eq: reservation.status, $ne: "active" },
+      vehicleId: reservation.vehicleId,
+      spotId: reservation.spotId,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      ...NOT_HOLD,
+    });
+    return deletedCount === 1 ? "deleted" : "changed";
   },
 
   async listByUser(userId) {

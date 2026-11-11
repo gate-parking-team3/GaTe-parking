@@ -119,6 +119,14 @@ Check-out ("End Parking"). No body. Owner only, and only while the reservation i
 - `200` `{ reservation, session }` with `status: "completed"` and `exitTime` set.
 - `400`, `403`, `404` as for start. `409` the reservation is not `active`.
 
+### `DELETE /api/reservations/:id` (US 6)
+
+Delete a reservation permanently. Its owner or an admin can call it, for any reservation that is not in progress (`reserved`, `completed` or `cancelled`). The spot and the vehicle are free for that window right away. Closed parking sessions of a completed reservation are kept.
+
+- `204` deleted, no body.
+- `400` malformed id. `403` someone else's reservation. `404` not found.
+- `409` parking is in progress (the reservation is `active` or has an open session), or the reservation changed while it was being deleted, e.g. by a check-in or an edit (reload and retry).
+
 ### Parking and spot status
 
 The reservation keeps its booked `startTime`/`endTime`; the real arrival and departure are the session's `entryTime`/`exitTime`. The spot's `status` field is not written. A spot is occupied while it has an open session (`exitTime` null). An open session blocks windows that start by now, also when the driver stays past `endTime`, but not later windows: nobody knows when the car leaves, and its active reservation already holds the booked window. If the car is still there when the next booking starts, that check-in gets `409`. After the end, the completed reservation no longer blocks the spot, so the rest of the window is free again. The database allows one open session per spot and per vehicle.
