@@ -39,7 +39,7 @@ class SimpleFaker {
     return (this.next() / 0x7fffffff) * (max - min) + min;
   }
 
-  pick<T>(items: T[]): T {
+  pick<T>(items: T[]): T | undefined {
     return items[this.number(0, items.length - 1)];
   }
 
@@ -167,10 +167,12 @@ function generateReservations(
   const reservationCount = Math.floor(parkingSpots.length * 0.6);
 
   for (let i = 0; i < reservationCount; i++) {
-    const user = users[faker.number(0, users.length - 1)];
-    const userVehicles = vehicles.filter((v) => v.userId === user.id);
-    const vehicle = userVehicles[faker.number(0, userVehicles.length - 1)];
-    const spot = parkingSpots[faker.number(0, parkingSpots.length - 1)];
+    const user = users[faker.number(0, users.length - 1)]!;
+    const userVehicles = vehicles.filter(
+      (v) => (v.userId as string) === user.key,
+    );
+    const vehicle = userVehicles[faker.number(0, userVehicles.length - 1)]!;
+    const spot = parkingSpots[faker.number(0, parkingSpots.length - 1)]!;
 
     const durationHours = faker.number(1, 8);
     const offsetHours = faker.number(-48, 48);
@@ -181,10 +183,10 @@ function generateReservations(
     );
 
     reservations.push({
-      userId: user.id,
-      vehicleId: vehicle._id,
-      spotId: spot.spotNumber,
-      lotId: spot.lotId,
+      userId: user.key,
+      vehicleId: vehicle._id as string,
+      spotId: spot.spotNumber as string,
+      lotId: spot.lotId as string,
       status: "reserved",
       startTime,
       endTime,
@@ -208,22 +210,22 @@ function generateParkingSessions(
     if (spot) {
       const entryOffset = faker.number(10, 60);
       const entryTime = new Date(
-        reservation.startTime.getTime() - entryOffset * 60 * 1000,
+        (reservation.startTime as Date).getTime() - entryOffset * 60 * 1000,
       );
 
-      const isCompleted = reservation.endTime < now;
+      const isCompleted = (reservation.endTime as Date) < now;
       const exitOffset = faker.number(10, 60);
 
       const session: Record<string, unknown> = {
-        spotId: spot.spotNumber,
-        vehicleId: reservation.vehicleId,
-        reservationId: reservation._id,
+        spotId: spot.spotNumber as string,
+        vehicleId: reservation.vehicleId as string,
+        reservationId: reservation._id as string,
         entryTime,
       };
 
       if (isCompleted) {
         session.exitTime = new Date(
-          reservation.endTime.getTime() + exitOffset * 60 * 1000,
+          (reservation.endTime as Date).getTime() + exitOffset * 60 * 1000,
         );
       }
 
@@ -241,7 +243,9 @@ async function main() {
 
   try {
     // Get vehicles from database
-    const vehiclesDocs = await VehicleModel.find().exec();
+    const vehiclesDocs = (await VehicleModel.find().exec()).map((v) =>
+      v.toObject(),
+    );
 
     // Build vehicle map by userId
     const vehicleMap = new Map<string, Array<Record<string, unknown>>>();
@@ -250,7 +254,7 @@ async function main() {
       if (userId) {
         const list = vehicleMap.get(userId) || [];
         list.push({
-          _id: vehicle._id,
+          _id: vehicle._id?.toString(),
           licensePlate: vehicle.licensePlate,
           brand: vehicle.brand,
           model: vehicle.model,
@@ -267,13 +271,15 @@ async function main() {
     const insertedLots: Array<Record<string, unknown>> = [];
 
     for (const lot of lots) {
-      const existing = await ParkingLotModel.findOne({ name: lot.name });
+      // Mongoose findOne overload issue with Record<string, unknown>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existing = await ParkingLotModel.findOne({ name: lot.name } as any);
       if (!existing) {
         const newLot = await ParkingLotModel.create(lot);
-        insertedLots.push(newLot);
+        insertedLots.push(newLot.toObject());
         console.log(`Created lot: ${newLot.name} (${newLot._id})`);
       } else {
-        insertedLots.push(existing);
+        insertedLots.push(existing.toObject());
       }
     }
 
@@ -284,13 +290,14 @@ async function main() {
     const insertedSpots: Array<Record<string, unknown>> = [];
 
     for (const spot of allSpots) {
-      const existing = await ParkingSpotModel.findOne({
-        lotId: spot.lotId,
-        spotNumber: spot.spotNumber,
-      });
+      // Mongoose findOne overload issue with Record<string, unknown>
+      const existing = await ParkingSpotModel.findOne(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { lotId: spot.lotId, spotNumber: spot.spotNumber } as any,
+      );
       if (!existing) {
         const newSpot = await ParkingSpotModel.create(spot);
-        insertedSpots.push(newSpot);
+        insertedSpots.push(newSpot.toObject());
       }
     }
 
@@ -305,15 +312,18 @@ async function main() {
     const insertedReservations: Array<Record<string, unknown>> = [];
 
     for (const res of allReservations) {
-      const existing = await ReservationModel.findOne({
-        userId: res.userId,
-        vehicleId: res.vehicleId,
-        spotId: res.spotId,
-        startTime: res.startTime,
-      });
+      // Mongoose findOne overload issue with Record<string, unknown>
+      const existing = await ReservationModel.findOne(
+        {
+          userId: res.userId,
+          vehicleId: res.vehicleId,
+          spotId: res.spotId,
+          startTime: res.startTime,
+        } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      );
       if (!existing) {
         const newRes = await ReservationModel.create(res);
-        insertedReservations.push(newRes);
+        insertedReservations.push(newRes.toObject());
       }
     }
 
@@ -327,14 +337,17 @@ async function main() {
     const insertedSessions: Array<Record<string, unknown>> = [];
 
     for (const session of allSessions) {
-      const existing = await ParkingSessionModel.findOne({
-        spotId: session.spotId,
-        vehicleId: session.vehicleId,
-        entryTime: session.entryTime,
-      });
+      // Mongoose findOne overload issue with Record<string, unknown>
+      const existing = await ParkingSessionModel.findOne(
+        {
+          spotId: session.spotId,
+          vehicleId: session.vehicleId,
+          entryTime: session.entryTime,
+        } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      );
       if (!existing) {
         const newSession = await ParkingSessionModel.create(session);
-        insertedSessions.push(newSession);
+        insertedSessions.push(newSession.toObject());
       }
     }
 
