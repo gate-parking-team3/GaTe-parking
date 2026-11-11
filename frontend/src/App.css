@@ -126,6 +126,222 @@ html {
   outline-offset: 2px;
 }
 
+/* ---- Header user area ---- */
+
+.site-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.site-header__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.site-header__logout {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.site-header__logout:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.site-header__logout:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ---- Login form ---- */
+
+.login-form {
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.login-form__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.login-form__input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.login-form__input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.login-form__error {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #842029;
+  background: #f8d7da;
+}
+
+.login-form__submit {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    opacity 0.15s;
+}
+
+.login-form__submit:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.login-form__submit:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.login-form__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- Session error / retry ---- */
+
+.session-error {
+  max-width: 28rem;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  background: #f8d7da;
+  color: #842029;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.session-error__message {
+  font-size: 0.9375rem;
+}
+
+.session-error__retry {
+  align-self: flex-start;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #842029;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: #842029;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.session-error__retry:hover {
+  background: #f1aeb5;
+}
+
+.session-error__retry:focus-visible {
+  outline: 2px solid #842029;
+  outline-offset: 2px;
+}
+
+/* ---- Status badges ---- */
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.status-badge--pending {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.status-badge--active {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.status-badge--disabled {
+  background: #e2e3e5;
+  color: #41464b;
+}
+
+/* ---- Employee Table ---- */
+
+.employee-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.employee-table th,
+.employee-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.employee-table th {
+  background: var(--color-bg);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* ---- Dev Invitation Helper ---- */
+
+.dev-helper {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px dashed #0d6efd;
+  background: #f0f7ff;
+  border-radius: 0.375rem;
+}
+
+.dev-helper__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #084298;
+  margin-bottom: 0.5rem;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 30rem) {

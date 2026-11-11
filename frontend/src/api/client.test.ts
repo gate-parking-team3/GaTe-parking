@@ -1,4 +1,4 @@
-import { ApiError, apiClient, setToken } from "./client";
+import { ApiError, apiClient, onUnauthorized, setToken } from "./client";
 
 function mockFetch(status: number, body?: unknown) {
   const fetchMock = vi.fn().mockResolvedValue(
@@ -77,6 +77,92 @@ describe("apiClient", () => {
 
     await expect(apiClient.get("/vehicles")).rejects.toMatchObject({
       status: 0,
+    });
+  });
+
+  describe("onUnauthorized", () => {
+    it("notifies listeners with the sent token when an authenticated request returns 401", async () => {
+      mockFetch(401, { error: "Not signed in" });
+      setToken("expired-token");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(apiClient.get("/vehicles")).rejects.toThrow();
+
+      expect(listener).toHaveBeenCalledWith("expired-token");
+      unsubscribe();
+      setToken(null);
+    });
+
+    it("does not notify listeners when /auth/login returns 401", async () => {
+      mockFetch(401, { error: "Wrong email or password" });
+      setToken("some-token");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(
+        apiClient.post("/auth/login", { email: "a@b.cz", password: "p" }),
+      ).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+      setToken(null);
+    });
+
+    it("does not notify listeners when /auth/activate returns 401", async () => {
+      mockFetch(401, { error: "Invalid activation token" });
+      setToken("some-token");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(
+        apiClient.post("/auth/activate", {
+          token: "a".repeat(64),
+          password: "password123",
+        }),
+      ).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+      setToken(null);
+    });
+
+    it("does not notify listeners on 403 forbidden responses", async () => {
+      mockFetch(403, { error: "Not allowed" });
+      setToken("valid-token");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(apiClient.get("/vehicles")).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+      setToken(null);
+    });
+
+    it("does not notify listeners when no token was sent with the request", async () => {
+      mockFetch(401, { error: "Not signed in" });
+      setToken(null);
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+
+      await expect(apiClient.get("/vehicles")).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
+    it("unsubscribes listeners so they are no longer notified", async () => {
+      mockFetch(401, { error: "Not signed in" });
+      setToken("tok");
+      const listener = vi.fn();
+      const unsubscribe = onUnauthorized(listener);
+      unsubscribe();
+
+      await expect(apiClient.get("/vehicles")).rejects.toThrow();
+
+      expect(listener).not.toHaveBeenCalled();
+      setToken(null);
     });
   });
 });
