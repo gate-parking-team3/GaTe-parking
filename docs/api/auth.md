@@ -24,10 +24,10 @@ Errors have the shape `{ "error": "<message>" }`. A malformed JSON body gets 400
 }
 ```
 
-| Field    | Values                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `role`   | `user`, `admin`                                                                            |
-| `status` | `pending` (registered, waiting for approval), `active` (may sign in), `disabled` (blocked) |
+| Field    | Values                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `role`   | `user`, `admin`                                                                                                  |
+| `status` | `pending` (invited and not yet activated, or waiting for approval), `active` (may sign in), `disabled` (blocked) |
 
 The password hash is never returned.
 
@@ -91,3 +91,45 @@ npm run create-admin -w backend -- hynek@gate.cz "Hynek" "a-strong-password"
 ```
 
 The password needs at least 8 characters and at most 72 bytes (bcrypt ignores anything longer). Running it again for an existing email makes that account an active admin; its name and password stay unchanged.
+
+## Employee invitations and activation
+
+Invitation links expire after 24 hours and can be used once.
+
+### `POST /api/admin/employees`
+
+Admins only (401 when not signed in, 403 for non-admins). Send either a `name` or both `firstName` and `lastName`, plus an email:
+
+```json
+{ "firstName": "Jana", "lastName": "Nova", "email": "jana@gate.cz" }
+```
+
+The full name (`name`, or `firstName` and `lastName` joined with a space) must be 2–150 characters after trimming; when `name` is sent, `firstName` and `lastName` are ignored. The email must be valid and at most 254 characters; it is trimmed and lower-cased. The new employee gets role `user` and status `pending` until they activate the account.
+
+| Status | Body                                               |
+| ------ | -------------------------------------------------- |
+| 201    | `{ "employee": User }`                             |
+| 400    | `{ "error": "Valid name and email are required" }` |
+| 409    | `{ "error": "Email already registered" }`          |
+
+The API does not send invitation emails yet. In non-production environments, an admin can retrieve the invitation from the development-only inbox.
+
+### `POST /api/auth/activate`
+
+Public endpoint. Activate an account with the 64-character hexadecimal invitation token and choose a password:
+
+```json
+{ "token": "<invitation-token>", "password": "a-strong-password" }
+```
+
+The password must meet the length limits described under [First admin](#first-admin). Activation does not sign the user in; call `POST /api/auth/login` afterwards.
+
+| Status | Body                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| 200    | `{ "user": User }`                                                                                            |
+| 400    | `{ "error": "Invalid token or password (8+ characters, max 72 bytes)" }`                                      |
+| 400    | `{ "error": "Activation link is invalid, expired or already used" }` (also when the account is not `pending`) |
+
+### `GET /api/dev/invitations/:email`
+
+Development only; this endpoint is not mounted in production. Requires an admin bearer token. Returns `{ "activationUrl": "...", "expiresAt": "..." }`, or 404 with `{ "error": "Invitation not found" }` if there is no invitation in the in-memory development inbox. The inbox lives in server memory: it is empty after a restart, and an entry stays after the invitation is used. Use the token from the activation URL in the `POST /api/auth/activate` request.
