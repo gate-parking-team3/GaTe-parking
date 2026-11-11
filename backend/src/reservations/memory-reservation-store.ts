@@ -120,6 +120,26 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
       Object.assign(reservation, changes);
       return { ok: true, value: { ...reservation } };
     },
+    async deleteIfUnchanged(read) {
+      // Like the MongoDB store: only if the reservation is still exactly as the caller read it.
+      const index = reservations.findIndex((r) => r.id === read.id);
+      const reservation = reservations[index];
+      if (
+        !reservation ||
+        reservation.status !== read.status ||
+        reservation.vehicleId !== read.vehicleId ||
+        reservation.spotId !== read.spotId ||
+        reservation.startTime.getTime() !== read.startTime.getTime() ||
+        reservation.endTime.getTime() !== read.endTime.getTime()
+      ) {
+        return "changed";
+      }
+      if (reservation.status === "active" || openSessionOf(reservation)) {
+        return "parked";
+      }
+      reservations.splice(index, 1);
+      return "deleted";
+    },
     async listByUser(userId) {
       return reservations
         .filter((r) => r.userId === userId)
