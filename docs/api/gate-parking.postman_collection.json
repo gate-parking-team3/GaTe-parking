@@ -2,7 +2,7 @@
   "info": {
     "name": "GaTe Parking API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run the requests top to bottom (Collection Runner or `npx newman run`). 'Login' stores the token and every other request uses it. Needs the sample data: `npm run seed -w backend`. Defaults sign in as the seeded user Anna and the seeded admin Eva (password gate-parking-dev)."
+    "description": "Run the requests top to bottom (Collection Runner or `npx newman run`). 'Login' stores the token and every other request uses it. Needs the sample data: `npm run seed -w backend`. Defaults sign in as the seeded user Anna, a second user Petr (to check users cannot reach each other's vehicles) and the seeded admin Eva (password gate-parking-dev)."
   },
   "auth": {
     "type": "bearer",
@@ -45,6 +45,14 @@
     },
     {
       "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "otherEmail",
+      "value": "petr.svoboda@example.com"
+    },
+    {
+      "key": "otherToken",
       "value": ""
     },
     {
@@ -340,7 +348,328 @@
           ]
         },
         {
-          "name": "8. Delete vehicle",
+          "name": "8. Replace vehicle (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "PUT replaces the whole vehicle, so the body sends every field (PATCH sends only the changed ones).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"{{plate}}\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Corolla\",\n  \"engineType\": \"combustion\",\n  \"size\": \"small\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json();",
+                  "pm.test('All fields replaced', () => {",
+                  "  pm.expect(v.brand).to.eql('Toyota');",
+                  "  pm.expect(v.model).to.eql('Corolla');",
+                  "  pm.expect(v.engineType).to.eql('combustion');",
+                  "  pm.expect(v.size).to.eql('small');",
+                  "  pm.expect(v.evCharging).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Replace vehicle with missing fields (expect 400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "PUT needs all five fields. Sending only one is refused; use PATCH for that.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Yaris\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Login as another user (Petr)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Signs in as a second seeded user and saves the token into 'otherToken'. The next requests use it to reach Anna's vehicle.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{otherEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.expect(d.user.role).to.eql('user');",
+                  "pm.collectionVariables.set('otherToken', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Another user reads the vehicle (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "Petr asks for Anna's vehicle. Vehicles are private, so this is refused.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains why', () => pm.expect(pm.response.json().error).to.eql('You can only view your own vehicle'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. Another user replaces the vehicle (expect 403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "Petr tries to replace Anna's vehicle with a valid body. Refused.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"{{plate}}\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Hijacked\",\n  \"engineType\": \"combustion\",\n  \"size\": \"small\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains why', () => pm.expect(pm.response.json().error).to.eql('You can only change your own vehicle'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Another user edits the vehicle (expect 403)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "Petr tries to edit Anna's vehicle. Refused.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Hijacked\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains why', () => pm.expect(pm.response.json().error).to.eql('You can only change your own vehicle'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14. Another user deletes the vehicle (expect 403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "Petr tries to delete Anna's vehicle. Refused.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Explains why', () => pm.expect(pm.response.json().error).to.eql('You can only remove your own vehicle'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15. Owner still sees the vehicle unchanged",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "{{vehicleId}}"]
+            },
+            "description": "Back as Anna: the refused requests above did not change or delete anything."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Not changed by the other user', () => pm.expect(pm.response.json().model).to.eql('Corolla'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16. Delete vehicle",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -364,7 +693,7 @@
           ]
         },
         {
-          "name": "9. Without token (expect 401)",
+          "name": "17. Without token (expect 401)",
           "request": {
             "method": "GET",
             "header": [],
@@ -391,7 +720,7 @@
           ]
         },
         {
-          "name": "10. Admin login",
+          "name": "18. Admin login",
           "request": {
             "method": "POST",
             "header": [
@@ -435,7 +764,7 @@
           ]
         },
         {
-          "name": "11. Employees as a normal user (expect 403)",
+          "name": "19. Employees as a normal user (expect 403)",
           "request": {
             "method": "GET",
             "header": [],
@@ -459,7 +788,7 @@
           ]
         },
         {
-          "name": "12. List employees (admin)",
+          "name": "20. List employees (admin)",
           "request": {
             "method": "GET",
             "header": [],
@@ -494,7 +823,7 @@
           ]
         },
         {
-          "name": "13. Register an employee (admin)",
+          "name": "21. Register an employee (admin)",
           "request": {
             "method": "POST",
             "header": [
@@ -546,7 +875,7 @@
           ]
         },
         {
-          "name": "14. Read the invitation (dev inbox)",
+          "name": "22. Read the invitation (dev inbox)",
           "request": {
             "method": "GET",
             "header": [],
@@ -581,7 +910,7 @@
           ]
         },
         {
-          "name": "15. Activate the account",
+          "name": "23. Activate the account",
           "request": {
             "method": "POST",
             "header": [
@@ -622,7 +951,7 @@
           ]
         },
         {
-          "name": "16. Get employee (admin)",
+          "name": "24. Get employee (admin)",
           "request": {
             "method": "GET",
             "header": [],
@@ -656,7 +985,7 @@
           ]
         },
         {
-          "name": "17. Disable the employee (admin)",
+          "name": "25. Disable the employee (admin)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -711,7 +1040,7 @@
       "description": "US 4 reserve a spot, US 11 edit, US 3 start and end parking, plus the vehicle deletion guard. Logs in by itself, so this folder can be run alone. Needs the sample data (npm run seed -w backend).",
       "item": [
         {
-          "name": "18. Login (Anna, so this folder runs on its own)",
+          "name": "26. Login (Anna, so this folder runs on its own)",
           "request": {
             "method": "POST",
             "header": [
@@ -769,7 +1098,7 @@
           ]
         },
         {
-          "name": "19. Admin login (so this folder runs on its own)",
+          "name": "27. Admin login (so this folder runs on its own)",
           "request": {
             "method": "POST",
             "header": [
@@ -813,7 +1142,7 @@
           ]
         },
         {
-          "name": "20. List my vehicles (pick seeded car)",
+          "name": "28. List my vehicles (pick seeded car)",
           "request": {
             "method": "GET",
             "header": [],
@@ -840,7 +1169,7 @@
           ]
         },
         {
-          "name": "21. List parking lots",
+          "name": "29. List parking lots",
           "request": {
             "method": "GET",
             "header": [],
@@ -867,7 +1196,7 @@
           ]
         },
         {
-          "name": "22. Available spots (future window)",
+          "name": "30. Available spots (future window)",
           "request": {
             "method": "GET",
             "header": [],
@@ -908,7 +1237,7 @@
           ]
         },
         {
-          "name": "23. Available spots: bad window (expect 400)",
+          "name": "31. Available spots: bad window (expect 400)",
           "request": {
             "method": "GET",
             "header": [],
@@ -946,7 +1275,7 @@
           ]
         },
         {
-          "name": "24. Reserve a spot",
+          "name": "32. Reserve a spot",
           "request": {
             "method": "POST",
             "header": [
@@ -987,7 +1316,7 @@
           ]
         },
         {
-          "name": "25. Reserve the same spot again (expect 409)",
+          "name": "33. Reserve the same spot again (expect 409)",
           "request": {
             "method": "POST",
             "header": [
@@ -1025,7 +1354,7 @@
           ]
         },
         {
-          "name": "26. Delete a car with an upcoming reservation (expect 409)",
+          "name": "34. Delete a car with an upcoming reservation (expect 409)",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -1049,7 +1378,7 @@
           ]
         },
         {
-          "name": "27. My reservations",
+          "name": "35. My reservations",
           "request": {
             "method": "GET",
             "header": [],
@@ -1074,7 +1403,7 @@
           ]
         },
         {
-          "name": "28. Get one reservation",
+          "name": "36. Get one reservation",
           "request": {
             "method": "GET",
             "header": [],
@@ -1098,7 +1427,7 @@
           ]
         },
         {
-          "name": "29. Edit reservation (longer window)",
+          "name": "37. Edit reservation (longer window)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1137,7 +1466,7 @@
           ]
         },
         {
-          "name": "30. Start parking too early (expect 422)",
+          "name": "38. Start parking too early (expect 422)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1161,7 +1490,7 @@
           ]
         },
         {
-          "name": "31. Available spots (now)",
+          "name": "39. Available spots (now)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1202,7 +1531,7 @@
           ]
         },
         {
-          "name": "32. Reserve a spot for now",
+          "name": "40. Reserve a spot for now",
           "request": {
             "method": "POST",
             "header": [
@@ -1241,7 +1570,7 @@
           ]
         },
         {
-          "name": "33. Start parking (check in)",
+          "name": "41. Start parking (check in)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1266,7 +1595,7 @@
           ]
         },
         {
-          "name": "34. End parking (check out)",
+          "name": "42. End parking (check out)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1291,7 +1620,7 @@
           ]
         },
         {
-          "name": "35. Reservation without token (expect 401)",
+          "name": "43. Reservation without token (expect 401)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1318,7 +1647,7 @@
           ]
         },
         {
-          "name": "36. Admin views a user's reservation",
+          "name": "44. Admin views a user's reservation",
           "request": {
             "method": "GET",
             "header": [],
@@ -1358,7 +1687,7 @@
       "description": "US 6 delete a reservation and US 8 in-app notifications. Logs in by itself, so this folder can be run alone. Needs the sample data (npm run seed -w backend). The scheduled reminders (start_soon, end_soon, spot_unavailable) need a minute of waiting, so they are not part of this run; the deleted notification is created right away.",
       "item": [
         {
-          "name": "37. Login (Anna, so this folder runs on its own)",
+          "name": "45. Login (Anna, so this folder runs on its own)",
           "request": {
             "method": "POST",
             "header": [
@@ -1416,7 +1745,7 @@
           ]
         },
         {
-          "name": "38. Admin login (so this folder runs on its own)",
+          "name": "46. Admin login (so this folder runs on its own)",
           "request": {
             "method": "POST",
             "header": [
@@ -1460,7 +1789,7 @@
           ]
         },
         {
-          "name": "39. List my vehicles (pick seeded car)",
+          "name": "47. List my vehicles (pick seeded car)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1487,7 +1816,7 @@
           ]
         },
         {
-          "name": "40. List parking lots",
+          "name": "48. List parking lots",
           "request": {
             "method": "GET",
             "header": [],
@@ -1514,7 +1843,7 @@
           ]
         },
         {
-          "name": "41. Available spots (future window)",
+          "name": "49. Available spots (future window)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1555,7 +1884,7 @@
           ]
         },
         {
-          "name": "42. Reserve a spot to delete",
+          "name": "50. Reserve a spot to delete",
           "request": {
             "method": "POST",
             "header": [
@@ -1596,7 +1925,7 @@
           ]
         },
         {
-          "name": "43. Notification settings (all on by default)",
+          "name": "51. Notification settings (all on by default)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1623,7 +1952,7 @@
           ]
         },
         {
-          "name": "44. Delete the reservation (US 6)",
+          "name": "52. Delete the reservation (US 6)",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -1647,7 +1976,7 @@
           ]
         },
         {
-          "name": "45. Delete it again (expect 404)",
+          "name": "53. Delete it again (expect 404)",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -1671,7 +2000,7 @@
           ]
         },
         {
-          "name": "46. Notifications include the deletion (US 8)",
+          "name": "54. Notifications include the deletion (US 8)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1699,7 +2028,7 @@
           ]
         },
         {
-          "name": "47. Mark the notification as read",
+          "name": "55. Mark the notification as read",
           "request": {
             "method": "PATCH",
             "header": [],
@@ -1723,7 +2052,7 @@
           ]
         },
         {
-          "name": "48. Mark it read as the admin (expect 404, not theirs)",
+          "name": "56. Mark it read as the admin (expect 404, not theirs)",
           "request": {
             "method": "PATCH",
             "header": [],
@@ -1757,7 +2086,7 @@
           ]
         },
         {
-          "name": "49. Change settings with an unknown key (expect 400)",
+          "name": "57. Change settings with an unknown key (expect 400)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1795,7 +2124,7 @@
           ]
         },
         {
-          "name": "50. Notifications without token (expect 401)",
+          "name": "58. Notifications without token (expect 401)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1822,7 +2151,7 @@
           ]
         },
         {
-          "name": "51. Available spots (now)",
+          "name": "59. Available spots (now)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1863,7 +2192,7 @@
           ]
         },
         {
-          "name": "52. Reserve a spot for now",
+          "name": "60. Reserve a spot for now",
           "request": {
             "method": "POST",
             "header": [
@@ -1902,7 +2231,7 @@
           ]
         },
         {
-          "name": "53. Start parking (check in)",
+          "name": "61. Start parking (check in)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1927,7 +2256,7 @@
           ]
         },
         {
-          "name": "54. Delete while parking (expect 409)",
+          "name": "62. Delete while parking (expect 409)",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -1951,7 +2280,7 @@
           ]
         },
         {
-          "name": "55. End parking (check out)",
+          "name": "63. End parking (check out)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1976,7 +2305,7 @@
           ]
         },
         {
-          "name": "56. Delete the completed reservation",
+          "name": "64. Delete the completed reservation",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -2000,7 +2329,7 @@
           ]
         },
         {
-          "name": "57. Available spots (future window again)",
+          "name": "65. Available spots (future window again)",
           "request": {
             "method": "GET",
             "header": [],
@@ -2041,7 +2370,7 @@
           ]
         },
         {
-          "name": "58. Reserve a spot for the admin to delete",
+          "name": "66. Reserve a spot for the admin to delete",
           "request": {
             "method": "POST",
             "header": [
@@ -2082,7 +2411,7 @@
           ]
         },
         {
-          "name": "59. Admin deletes a user's reservation",
+          "name": "67. Admin deletes a user's reservation",
           "request": {
             "method": "DELETE",
             "header": [],
