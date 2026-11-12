@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "create-admin": "tsx src/create-admin.ts",
     "seed": "tsx src/seed/seed.ts",
+    "seed:parking": "tsx src/seed/parking-seed.ts",
     "test": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
