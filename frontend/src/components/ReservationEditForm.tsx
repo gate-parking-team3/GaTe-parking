@@ -16,7 +16,7 @@ type ReservationEditFormProps = {
   onCancel: () => void;
 };
 
-const spotTypeLabels: Record<ParkingSpotType, string> = {
+export const spotTypeLabels: Record<ParkingSpotType, string> = {
   standard: "Standard",
   disabled: "Disabled",
   ev: "EV",
@@ -29,7 +29,7 @@ export function toLocalInput(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function toIso(local: string): string | null {
+export function toIso(local: string): string | null {
   const date = new Date(local);
   return local && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
 }

@@ -14,6 +14,11 @@ export interface Reservation {
   endTime: string;
 }
 
+export type ReservationInput = Pick<
+  Reservation,
+  "vehicleId" | "spotId" | "startTime" | "endTime"
+>;
+
 export type ReservationUpdate = Partial<
   Pick<Reservation, "vehicleId" | "spotId" | "startTime" | "endTime">
 >;
@@ -27,6 +32,15 @@ export interface ParkingSpot {
   type: ParkingSpotType;
   size: VehicleSize;
   status: "free" | "reserved" | "occupied";
+}
+
+export interface ParkingLot {
+  id: string;
+  name: string;
+  address: string;
+  totalCapacity: number;
+  evCapacity: number;
+  disabledCapacity: number;
 }
 
 // Only a reserved booking whose start is still ahead can be edited (US 11).
