@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authApi } from "./api/authApi";
+import { notificationApi } from "./api/notificationApi";
 import { vehicleApi } from "./api/vehicleApi";
 import App from "./App";
 import type { User } from "./types/auth";
@@ -78,6 +79,13 @@ describe("Anonymous user experience", () => {
     ).toBeInTheDocument();
   });
 
+  it("redirects anonymous visitor from /notifications to /login", async () => {
+    renderApp("/notifications");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+    ).toBeInTheDocument();
+  });
+
   it("redirects anonymous visitor from /admin/employees to /login", async () => {
     renderApp("/admin/employees");
     expect(
@@ -138,6 +146,14 @@ describe("Authenticated user experience", () => {
     localStorage.setItem("gate-parking-token", "valid-user-token");
     vi.spyOn(authApi, "me").mockResolvedValue({ user: mockUser });
     vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
+    vi.spyOn(notificationApi, "list").mockResolvedValue([]);
+    vi.spyOn(notificationApi, "settings").mockResolvedValue({
+      start_soon: true,
+      end_soon: true,
+      cancelled: true,
+      deleted: true,
+      spot_unavailable: true,
+    });
   });
 
   afterEach(() => {
@@ -175,6 +191,9 @@ describe("Authenticated user experience", () => {
       "href",
       "/history",
     );
+    expect(
+      within(nav).getByRole("link", { name: "Notifications" }),
+    ).toHaveAttribute("href", "/notifications");
     expect(
       within(nav).queryByRole("link", { name: "Employees" }),
     ).not.toBeInTheDocument();
@@ -251,18 +270,27 @@ describe("Authenticated user experience", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders direct routes: /vehicles and /history", async () => {
+  it("renders direct routes: /vehicles, /history, and /notifications", async () => {
     const { unmount } = renderApp("/vehicles");
     expect(
       await screen.findByRole("heading", { level: 1, name: "My vehicles" }),
     ).toBeInTheDocument();
     unmount();
 
-    renderApp("/history");
+    const { unmount: unmountHistory } = renderApp("/history");
     expect(
       await screen.findByRole("heading", {
         level: 1,
         name: "Parking History",
+      }),
+    ).toBeInTheDocument();
+    unmountHistory();
+
+    renderApp("/notifications");
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Notifications",
       }),
     ).toBeInTheDocument();
   });
