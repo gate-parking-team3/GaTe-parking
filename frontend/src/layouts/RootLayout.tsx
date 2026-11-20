@@ -6,6 +6,7 @@ export default function RootLayout() {
 
   const navItems = [
     { to: "/", label: "Parking" },
+    { to: "/reserve", label: "Reserve" },
     { to: "/reservations", label: "Reservations" },
     { to: "/vehicles", label: "Vehicles" },
     { to: "/history", label: "History" },

@@ -10,6 +10,7 @@ import Employees from "./pages/Employees";
 import NotFound from "./pages/NotFound";
 import ParkingAvailability from "./pages/ParkingAvailability";
 import Reservations from "./pages/Reservations";
+import ReserveSpot from "./pages/ReserveSpot";
 import Vehicles from "./pages/Vehicles";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route index element={<ParkingAvailability />} />
             <Route path="reservations" element={<Reservations />} />
+            <Route path="reserve" element={<ReserveSpot />} />
             <Route path="vehicles" element={<Vehicles />} />
             <Route path="history" element={<History />} />
           </Route>
