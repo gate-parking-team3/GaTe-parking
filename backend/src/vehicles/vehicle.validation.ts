@@ -1,9 +1,3 @@
-export const ENGINE_TYPES = ["combustion", "ev", "hybrid"] as const;
-
-export type EngineType = (typeof ENGINE_TYPES)[number];
-
-const EV_FLAG_ENGINE_TYPES = new Set<EngineType>(["ev"]);
-
 const PLATE_MIN_LENGTH = 2;
 const PLATE_MAX_LENGTH = 12;
 const NORMALIZED_PLATE_PATTERN = /^[A-Z0-9]+$/;
@@ -69,16 +63,4 @@ export function isLicensePlateUnique(
   }
 
   return true;
-}
-
-export function hasEvFlag(engineType: string): boolean {
-  if (!isEngineType(engineType)) {
-    throw new Error(`Unsupported engine type: ${engineType}`);
-  }
-
-  return EV_FLAG_ENGINE_TYPES.has(engineType);
-}
-
-function isEngineType(engineType: string): engineType is EngineType {
-  return (ENGINE_TYPES as readonly string[]).includes(engineType);
 }

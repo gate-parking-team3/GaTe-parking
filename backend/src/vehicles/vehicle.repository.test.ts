@@ -49,19 +49,18 @@ describe("mongoVehicleRepository", () => {
 
   it("maps MongoDB _id to id", async () => {
     create.mockResolvedValue(stored);
-    find.mockReturnValue({
-      select: () => ({ lean: () => Promise.resolve([stored]) }),
-    });
+    find.mockReturnValue({ lean: () => Promise.resolve([stored]) });
     findById.mockReturnValue({ lean: () => Promise.resolve(stored) });
 
     const created = await mongoVehicleRepository.create(input);
     const found = await mongoVehicleRepository.findById(stored._id);
-    const plates = await mongoVehicleRepository.listLicensePlates();
+    const owned = await mongoVehicleRepository.listByOwner("U001");
 
     expect(created.id).toBe(stored._id);
     expect(created).not.toHaveProperty("_id");
     expect(found).toEqual(created);
-    expect(plates).toEqual(["1AB2345"]);
+    expect(owned).toEqual([created]);
+    expect(find).toHaveBeenCalledWith({ userId: "U001" });
   });
 
   it("returns null when the document is missing", async () => {
