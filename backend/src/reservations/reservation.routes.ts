@@ -15,7 +15,9 @@ import {
   type ParkingOutcome,
   type ReservationStore,
 } from "./reservation.store.js";
+import type { ParkingSpotRecord } from "../parks/parkingSpot.types.js";
 import type { ReservationRecord } from "../parks/reservation.types.js";
+import type { VehicleRecord } from "../vehicles/vehicle.types.js";
 import { notifyReservationDeleted } from "../notifications/notification.worker.js";
 
 const ID_PATTERN = /^[a-fA-F0-9]{24}$/;
@@ -188,6 +190,43 @@ export function createReservationRouter(deps: Partial<Deps> = {}): Router {
         return;
       }
       res.json(await store.listByUser(userId));
+    }),
+  );
+
+  // US 7: upcoming (`reserved`, end still ahead) and in-progress (`active`) reservations.
+  // Registered before /:id so "active" is not read as a reservation id.
+  router.get(
+    "/active",
+    handle(async (req, res) => {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: "Not signed in" });
+        return;
+      }
+      const at = now();
+      const reservations = await store.listCurrentByUser(userId, at);
+      const [vehicleList, spotList] = await Promise.all([
+        vehicles.findByIds(
+          reservations.map((reservation) => reservation.vehicleId),
+          userId,
+        ),
+        store.findSpotsByIds(
+          reservations.map((reservation) => reservation.spotId),
+        ),
+      ]);
+      const vehicleById = new Map(
+        vehicleList.map((vehicle) => [vehicle.id, vehicle]),
+      );
+      const spotById = new Map(spotList.map((spot) => [spot.id, spot]));
+      res.json(
+        reservations.map((reservation) =>
+          toCurrentReservation(
+            reservation,
+            vehicleById.get(reservation.vehicleId),
+            spotById.get(reservation.spotId),
+          ),
+        ),
+      );
     }),
   );
 
@@ -425,6 +464,39 @@ function sendOutcome(res: Response, outcome: ParkingOutcome): void {
         ? "The spot or the vehicle is already in use by another parking session"
         : "The reservation changed in the meantime, reload it and try again",
   });
+}
+
+// US 7 view. A missing vehicle or spot stays null so one broken link does not fail the list.
+function toCurrentReservation(
+  reservation: ReservationRecord,
+  vehicle: VehicleRecord | undefined,
+  spot: ParkingSpotRecord | undefined,
+) {
+  return {
+    id: reservation.id,
+    status: reservation.status,
+    startTime: reservation.startTime,
+    endTime: reservation.endTime,
+    vehicle: vehicle
+      ? {
+          id: vehicle.id,
+          licensePlate: vehicle.licensePlate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          engineType: vehicle.engineType,
+          size: vehicle.size,
+        }
+      : null,
+    parkingSpot: spot
+      ? {
+          id: spot.id,
+          spotNumber: spot.spotNumber,
+          type: spot.type,
+          size: spot.size,
+          lotId: spot.lotId,
+        }
+      : null,
+  };
 }
 
 function readId(value: unknown): string | null {

@@ -2,6 +2,7 @@ import express, { type RequestHandler } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ParkingSpotRecord } from "../parks/parkingSpot.types.js";
+import type { ReservationRecord } from "../parks/reservation.types.js";
 import type { User } from "../users/user.js";
 import type { VehicleRepository } from "../vehicles/vehicle.repository.js";
 import type { VehicleRecord } from "../vehicles/vehicle.types.js";
@@ -55,6 +56,10 @@ const vehicle = (
 const fakeVehicles = (records: VehicleRecord[]): VehicleRepository => ({
   async findById(vid) {
     return records.find((v) => v.id === vid) ?? null;
+  },
+  async findByIds(ids, userId) {
+    const wanted = new Set(ids);
+    return records.filter((v) => wanted.has(v.id) && v.userId === userId);
   },
   listByOwner: () => Promise.reject(new Error("unused")),
   create: () => Promise.reject(new Error("unused")),
@@ -749,5 +754,256 @@ describe("PATCH /api/reservations/:id", () => {
       (await request(appAs()).patch(`/api/reservations/${rid}`).send(AFTERNOON))
         .status,
     ).toBe(401);
+  });
+});
+
+describe("GET /api/reservations/active", () => {
+  const at = (iso: string) => new Date(iso);
+  const skoda = vehicle(SKODA, ANNA, "combustion");
+  const tesla = vehicle(TESLA, ANNA, "electric");
+
+  const booked = (
+    n: number,
+    overrides: Partial<ReservationRecord> = {},
+  ): ReservationRecord => ({
+    id: id(n),
+    userId: ANNA,
+    vehicleId: SKODA,
+    spotId: STANDARD.id,
+    lotId: LOT,
+    status: "reserved",
+    startTime: at(MORNING.startTime),
+    endTime: at(MORNING.endTime),
+    ...overrides,
+  });
+
+  const load = (records: ReservationRecord[]) => {
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD, SMALL, EV, DISABLED],
+      reservations: records,
+    });
+  };
+
+  const current = (userId?: string) =>
+    request(appAs(userId)).get("/api/reservations/active");
+
+  const vehicleView = (record: VehicleRecord) => ({
+    id: record.id,
+    licensePlate: record.licensePlate,
+    brand: record.brand,
+    model: record.model,
+    engineType: record.engineType,
+    size: record.size,
+  });
+
+  const spotView = (record: ParkingSpotRecord) => ({
+    id: record.id,
+    spotNumber: record.spotNumber,
+    type: record.type,
+    size: record.size,
+    lotId: record.lotId,
+  });
+
+  it("returns upcoming and active reservations with vehicle and spot, soonest first", async () => {
+    const started = booked(30, {
+      status: "active",
+      vehicleId: TESLA,
+      spotId: EV.id,
+      startTime: at("2026-11-10T07:30:00.000Z"),
+      endTime: at("2026-11-10T10:00:00.000Z"),
+    });
+    const morning = booked(31);
+    const later = booked(32, {
+      spotId: SMALL.id,
+      startTime: at("2026-11-10T12:00:00.000Z"),
+      endTime: at("2026-11-10T13:00:00.000Z"),
+    });
+    load([later, morning, started]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: started.id,
+        status: "active",
+        startTime: "2026-11-10T07:30:00.000Z",
+        endTime: "2026-11-10T10:00:00.000Z",
+        vehicle: vehicleView(tesla),
+        parkingSpot: spotView(EV),
+      },
+      {
+        id: morning.id,
+        status: "reserved",
+        startTime: MORNING.startTime,
+        endTime: MORNING.endTime,
+        vehicle: vehicleView(skoda),
+        parkingSpot: spotView(STANDARD),
+      },
+      {
+        id: later.id,
+        status: "reserved",
+        startTime: "2026-11-10T12:00:00.000Z",
+        endTime: "2026-11-10T13:00:00.000Z",
+        vehicle: vehicleView(skoda),
+        parkingSpot: spotView(SMALL),
+      },
+    ]);
+  });
+
+  it("drops expired reserved reservations and keeps active ones past their end", async () => {
+    const expired = booked(40, {
+      startTime: at("2026-11-10T06:00:00.000Z"),
+      endTime: at("2026-11-10T07:00:00.000Z"),
+    });
+    const endingNow = booked(41, {
+      startTime: at("2026-11-10T07:00:00.000Z"),
+      endTime: NOW,
+    });
+    const overdue = booked(42, {
+      status: "active",
+      vehicleId: TESLA,
+      spotId: EV.id,
+      startTime: at("2026-11-10T06:00:00.000Z"),
+      endTime: at("2026-11-10T07:00:00.000Z"),
+    });
+    // The planned start has passed, but Start Parking was not called, so it stays reserved.
+    const stillReserved = booked(43, {
+      startTime: at("2026-11-10T07:00:00.000Z"),
+      endTime: at("2026-11-10T11:00:00.000Z"),
+    });
+    load([expired, endingNow, overdue, stillReserved]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: overdue.id,
+        status: "active",
+        startTime: "2026-11-10T06:00:00.000Z",
+        endTime: "2026-11-10T07:00:00.000Z",
+        vehicle: vehicleView(tesla),
+        parkingSpot: spotView(EV),
+      },
+      {
+        id: stillReserved.id,
+        status: "reserved",
+        startTime: "2026-11-10T07:00:00.000Z",
+        endTime: "2026-11-10T11:00:00.000Z",
+        vehicle: vehicleView(skoda),
+        parkingSpot: spotView(STANDARD),
+      },
+    ]);
+  });
+
+  it("leaves out completed, cancelled and other users' reservations", async () => {
+    const mine = booked(50);
+    load([
+      mine,
+      booked(51, { status: "completed" }),
+      booked(52, {
+        status: "cancelled",
+        vehicleId: TESLA,
+        spotId: EV.id,
+        startTime: at("2026-11-10T12:00:00.000Z"),
+        endTime: at("2026-11-10T13:00:00.000Z"),
+      }),
+      booked(53, {
+        userId: PETR,
+        vehicleId: PETR_CAR,
+        spotId: SMALL.id,
+        startTime: at("2026-11-10T12:00:00.000Z"),
+        endTime: at("2026-11-10T13:00:00.000Z"),
+      }),
+    ]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: mine.id,
+        status: "reserved",
+        startTime: MORNING.startTime,
+        endTime: MORNING.endTime,
+        vehicle: vehicleView(skoda),
+        parkingSpot: spotView(STANDARD),
+      },
+    ]);
+  });
+
+  it("returns an empty array when the caller has no current reservations", async () => {
+    load([
+      booked(60, {
+        userId: PETR,
+        vehicleId: PETR_CAR,
+        spotId: SMALL.id,
+      }),
+    ]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("rejects a caller who is not signed in", async () => {
+    const res = await current();
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Not signed in" });
+  });
+
+  it("hides a vehicle that belongs to another user", async () => {
+    const foreign = booked(80, { vehicleId: PETR_CAR });
+    load([foreign]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: foreign.id,
+        status: "reserved",
+        startTime: MORNING.startTime,
+        endTime: MORNING.endTime,
+        vehicle: null,
+        parkingSpot: spotView(STANDARD),
+      },
+    ]);
+  });
+
+  it("returns null when the vehicle or the parking spot is missing", async () => {
+    const goneVehicle = booked(70, { vehicleId: id(404) });
+    const goneSpot = booked(71, {
+      vehicleId: TESLA,
+      spotId: id(405),
+      startTime: at("2026-11-10T12:00:00.000Z"),
+      endTime: at("2026-11-10T13:00:00.000Z"),
+    });
+    load([goneVehicle, goneSpot]);
+
+    const res = await current(ANNA);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: goneVehicle.id,
+        status: "reserved",
+        startTime: MORNING.startTime,
+        endTime: MORNING.endTime,
+        vehicle: null,
+        parkingSpot: spotView(STANDARD),
+      },
+      {
+        id: goneSpot.id,
+        status: "reserved",
+        startTime: "2026-11-10T12:00:00.000Z",
+        endTime: "2026-11-10T13:00:00.000Z",
+        vehicle: vehicleView(tesla),
+        parkingSpot: null,
+      },
+    ]);
   });
 });
