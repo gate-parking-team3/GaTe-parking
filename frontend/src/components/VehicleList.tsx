@@ -14,7 +14,11 @@ const sizeLabels: Record<VehicleSize, string> = {
   large: "Large",
 };
 
-export default function VehicleList() {
+export default function VehicleList({
+  refreshTrigger,
+}: {
+  refreshTrigger?: number;
+} = {}) {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Vehicle | null>(null);
@@ -39,7 +43,7 @@ export default function VehicleList() {
     return () => {
       ignore = true;
     };
-  }, [reloadCount]);
+  }, [reloadCount, refreshTrigger]);
 
   function retry() {
     setError(null);
@@ -67,53 +71,91 @@ export default function VehicleList() {
   }
 
   return (
-    <section aria-label="Vehicles">
+    <section aria-label="Vehicles" className="vehicles-section">
       {error ? (
-        <div role="alert">
-          <p>{error}</p>
-          <button type="button" onClick={retry}>
+        <div role="alert" className="session-error">
+          <p className="session-error__message">{error}</p>
+          <button
+            type="button"
+            className="session-error__retry"
+            onClick={retry}
+          >
             Try again
           </button>
         </div>
       ) : vehicles === null ? (
-        <p>Loading vehicles…</p>
+        <p className="parking-loading-msg">Loading vehicles…</p>
       ) : vehicles.length === 0 ? (
-        <p>You have no vehicles yet.</p>
+        <p className="parking-empty-msg">You have no vehicles yet.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>License plate</th>
-              <th>Brand</th>
-              <th>Model</th>
-              <th>Engine type</th>
-              <th>Size</th>
-              <th>
-                <span hidden>Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {vehicles.map((vehicle) => (
-              <tr key={vehicle.id}>
-                <td>{vehicle.licensePlate}</td>
-                <td>{vehicle.brand}</td>
-                <td>{vehicle.model}</td>
-                <td>{engineLabels[vehicle.engineType]}</td>
-                <td>{sizeLabels[vehicle.size]}</td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(vehicle)}
-                    aria-label={`Edit ${vehicle.licensePlate}`}
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="vehicles-list">
+          {vehicles.map((vehicle) => (
+            <article
+              key={vehicle.id}
+              className="vehicle-row"
+              onClick={() => setEditing(vehicle)}
+            >
+              <div className="vehicle-row__left">
+                <div
+                  className="cz-plate"
+                  aria-label={`CZ ${vehicle.licensePlate}`}
+                >
+                  <span className="cz-plate__flag">CZ</span>
+                  <span className="cz-plate__code">{vehicle.licensePlate}</span>
+                </div>
+
+                <div className="vehicle-row__info">
+                  <h3 className="vehicle-row__title">
+                    <span className="vehicle-row__brand">{vehicle.brand}</span>{" "}
+                    <span className="vehicle-row__model">{vehicle.model}</span>
+                  </h3>
+
+                  <div className="vehicle-row__meta">
+                    <span
+                      className={`vehicle-row__engine ${vehicle.engineType === "electric" ? "vehicle-row__engine--electric" : ""}`}
+                    >
+                      {vehicle.engineType === "electric" && (
+                        <span aria-hidden="true">⚡ </span>
+                      )}
+                      <span>{engineLabels[vehicle.engineType]}</span>
+                    </span>
+                    <span className="vehicle-row__meta-sep" aria-hidden="true">
+                      {" "}
+                      ·{" "}
+                    </span>
+                    <span className="vehicle-row__ev-hint">
+                      {vehicle.engineType === "electric"
+                        ? "can use EV spots"
+                        : "standard spots only"}
+                    </span>
+                    <span className="vehicle-row__meta-sep" aria-hidden="true">
+                      {" "}
+                      ·{" "}
+                    </span>
+                    <span className="vehicle-row__size">
+                      <span>{sizeLabels[vehicle.size]}</span> size
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="vehicle-row__action-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditing(vehicle);
+                }}
+                aria-label={`Edit ${vehicle.licensePlate}`}
+              >
+                <span className="sr-only">Edit</span>
+                <span className="vehicle-row__chevron" aria-hidden="true">
+                  &rsaquo;
+                </span>
+              </button>
+            </article>
+          ))}
+        </div>
       )}
     </section>
   );
