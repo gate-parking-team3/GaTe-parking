@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authApi } from "./api/authApi";
+import { lotApi } from "./api/lotApi";
 import { vehicleApi } from "./api/vehicleApi";
 import App from "./App";
 import type { User } from "./types/auth";
@@ -138,6 +139,7 @@ describe("Authenticated user experience", () => {
     localStorage.setItem("gate-parking-token", "valid-user-token");
     vi.spyOn(authApi, "me").mockResolvedValue({ user: mockUser });
     vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
+    vi.spyOn(lotApi, "list").mockResolvedValue([]);
   });
 
   afterEach(() => {

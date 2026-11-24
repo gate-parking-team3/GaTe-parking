@@ -164,7 +164,7 @@ describe("ParkingAvailability", () => {
     expect(screen.getByTestId("spot-A3")).toBeInTheDocument();
     expect(screen.getByTestId("spot-A4")).toBeInTheDocument();
 
-    expect(screen.getByText("Spot A1", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("A1")).toBeInTheDocument();
     expect(screen.getByText("Total capacity")).toBeInTheDocument();
   });
 
