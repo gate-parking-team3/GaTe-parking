@@ -7,17 +7,15 @@ export default function Vehicles() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   return (
-    <div className="vehicles-page">
-      <div className="page-header-row">
+    <div className="page">
+      <div className="head">
         <div>
-          <h1 className="page-heading">My Vehicles</h1>
-          <p className="page-description">
-            The gate opens for these licence plates.
-          </p>
+          <h1>My vehicles</h1>
+          <p>The gate opens for these licence plates.</p>
         </div>
         <button
           type="button"
-          className="btn-action-primary"
+          className="btn btn-primary"
           onClick={() => setIsAddModalOpen(true)}
         >
           Add a vehicle
@@ -29,7 +27,7 @@ export default function Vehicles() {
       <AddVehicleModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAdded={() => setRefreshTrigger((c) => c + 1)}
+        onAdded={() => setRefreshTrigger((count) => count + 1)}
       />
     </div>
   );

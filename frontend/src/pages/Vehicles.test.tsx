@@ -25,9 +25,9 @@ describe("Vehicles page", () => {
     render(<Vehicles />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "My Vehicles" }),
+      screen.getByRole("heading", { level: 1, name: "My vehicles" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("1AB2345")).toBeInTheDocument();
+    expect(await screen.findByText("1AB 2345")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit 1AB2345" }),
     ).toBeInTheDocument();
@@ -72,5 +72,71 @@ describe("Vehicles page", () => {
       size: "standard",
     });
     expect(listSpy).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByRole("heading", { name: "Add a vehicle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a message next to the plate field when the plate is invalid", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
+    const createSpy = vi.spyOn(vehicleApi, "create");
+
+    render(<Vehicles />);
+
+    await user.click(screen.getByRole("button", { name: "Add a vehicle" }));
+    await user.type(screen.getByLabelText("License plate"), "!");
+    await user.type(screen.getByLabelText("Brand"), "Škoda");
+    await user.type(screen.getByLabelText("Model"), "Octavia");
+    await user.click(screen.getByRole("button", { name: "Add vehicle" }));
+
+    expect(screen.getByLabelText("License plate")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText(/letters or digits/)).toBeInTheDocument();
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's message and keeps the modal open when adding fails", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
+    vi.spyOn(vehicleApi, "create").mockRejectedValue(
+      new ApiError("This license plate is already registered", 409),
+    );
+
+    render(<Vehicles />);
+
+    await user.click(screen.getByRole("button", { name: "Add a vehicle" }));
+    await user.type(screen.getByLabelText("License plate"), "1AB2345");
+    await user.type(screen.getByLabelText("Brand"), "Škoda");
+    await user.type(screen.getByLabelText("Model"), "Octavia");
+    await user.click(screen.getByRole("button", { name: "Add vehicle" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This license plate is already registered",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Add a vehicle" }),
+    ).toBeInTheDocument();
+  });
+
+  it("closes the modal with Escape and with Cancel", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
+
+    render(<Vehicles />);
+
+    await user.click(screen.getByRole("button", { name: "Add a vehicle" }));
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("heading", { name: "Add a vehicle" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add a vehicle" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.queryByRole("heading", { name: "Add a vehicle" }),
+    ).not.toBeInTheDocument();
   });
 });
