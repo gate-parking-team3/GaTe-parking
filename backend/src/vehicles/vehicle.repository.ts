@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import type { VehicleFields, VehicleRecord } from "./vehicle.types.js";
 import { VehicleModel } from "./vehicle.model.js";
 
@@ -7,6 +8,7 @@ export interface VehicleRepository {
   listByOwner(userId: string): Promise<VehicleRecord[]>;
   create(input: VehicleFields & { userId: string }): Promise<VehicleRecord>;
   findById(id: string): Promise<VehicleRecord | null>;
+  findByIds(ids: string[], userId: string): Promise<VehicleRecord[]>;
   update(id: string, patch: VehicleUpdateFields): Promise<VehicleRecord | null>;
   deleteById(id: string): Promise<boolean>;
 }
@@ -37,6 +39,18 @@ export const mongoVehicleRepository: VehicleRepository = {
   async findById(id) {
     const doc = await VehicleModel.findById(id).lean();
     return doc ? toVehicleRecord(doc) : null;
+  },
+
+  async findByIds(ids, userId) {
+    const valid = [...new Set(ids)].filter((id) =>
+      mongoose.isValidObjectId(id),
+    );
+    if (valid.length === 0) return [];
+    const docs = await VehicleModel.find({
+      _id: { $in: valid },
+      userId,
+    }).lean();
+    return docs.map(toVehicleRecord);
   },
 
   async update(id, patch) {

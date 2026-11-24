@@ -37,6 +37,10 @@ The shared layout lives in `src/layouts/RootLayout.tsx`. It renders:
 
 All pages share this layout through nested routing defined in `src/App.tsx`.
 
+## Styling
+
+All UI follows the design system in [`docs/design-system.md`](../docs/design-system.md). Design tokens live in `src/styles/tokens.css` and shared component classes in `src/styles/components.css`; both are loaded in `src/main.tsx`. Use `var(--token)` and the shared classes; raw colours outside `tokens.css` fail the tests.
+
 ## Adding a new page
 
 1. Create a component in `src/pages/`, for example `src/pages/MyPage.tsx`:

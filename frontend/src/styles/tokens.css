@@ -1,0 +1,122 @@
+/*
+ * GaŤe Parking design tokens.
+ * Source of truth: the design reference (see docs/design-system.md).
+ * This is the ONLY file in the frontend that may contain raw colour values.
+ * Everything else uses var(--token). Do not add a colour here without the
+ * team agreeing on it.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap");
+
+:root {
+  color-scheme: light;
+
+  /* ---- Colour: surfaces and lines ---- */
+  --bg: #ffffff; /* page and card ground */
+  --surface: #f6f8fb; /* hover, disabled, auth background, wells */
+  --line: #e3e8ef; /* dividers, card borders */
+  --line-strong: #cbd5e1; /* input and button borders */
+
+  /* ---- Colour: text ---- */
+  --ink: #0d1b2a; /* headings, body text */
+  --ink-2: #44546a; /* secondary text, subtitles */
+  --ink-3: #78869a; /* labels, hints, table headers */
+  --on-accent: #ffffff; /* text on blue / red / ink fills */
+
+  /* ---- Colour: the one accent ---- */
+  --blue: #0087e6; /* primary buttons, focus, selection, EV */
+  --blue-600: #006fbf; /* hover, active tab, text on blue-50 */
+  --blue-50: #eef6fd; /* selected / reserved background */
+  --blue-100: #d4e9fb; /* focus ring, avatar, reserved border */
+  --blue-on-dark: #7cc3ff; /* links/actions on the dark toast */
+
+  /* ---- Colour: status (use only for meaning, never decoration) ---- */
+  --green: #12794a; /* success text: parked, free */
+  --green-50: #e7f5ed;
+  --green-dot: #1f9d60; /* availability bar fill */
+  --amber: #9a5800; /* warning text: pending */
+  --amber-50: #fdf3e2;
+  --amber-dot: #e39a1c; /* "payment due" dot */
+  --red: #c0352f; /* errors, destructive actions */
+  --red-600: #a62c27; /* danger button hover */
+  --red-50: #fdeceb;
+  --slate: #475569; /* neutral status: done, cancelled */
+  --slate-50: #eef1f5;
+
+  /* ---- Colour: licence plate (fixed, EU style) ---- */
+  --plate-border: #1b2a3a;
+  --plate-eu: #1d4fa8;
+
+  /* ---- Elevation ---- */
+  --shadow: 0 1px 2px rgba(13, 27, 42, 0.06), 0 8px 24px rgba(13, 27, 42, 0.08);
+  --shadow-sm: 0 1px 2px rgba(13, 27, 42, 0.12); /* segmented "on" */
+  --backdrop: rgba(13, 27, 42, 0.38); /* modal backdrop */
+  --focus-ring: 0 0 0 3px var(--blue-100);
+
+  /* ---- Typography ---- */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  --text-2xs: 11px; /* badge count, mobile tab label */
+  --text-xs: 12.5px; /* pills, hints, table headers, eyebrow */
+  --text-sm: 13.5px; /* small buttons, .small */
+  --text-base: 15px; /* body */
+  --text-md: 16px; /* section titles, step headings */
+  --text-lg: 18px; /* modal title */
+  --text-xl: 22px; /* auth card title */
+  --text-2xl: 26px; /* page title (mobile 23px) */
+  --text-3xl: 34px; /* page title on desktop */
+  --text-figure: 44px; /* big figures */
+  --text-hero: 128px; /* hero spot number (mobile 64px) */
+
+  --weight-regular: 400;
+  --weight-medium: 550; /* labels, buttons, tabs */
+  --weight-semibold: 600; /* item titles, table headers */
+  --weight-strong: 650; /* page titles, numbers */
+  --weight-bold: 700; /* brand, hero number */
+
+  --leading: 1.5;
+  --tracking-tight: -0.01em; /* all headings */
+  --tracking-display: -0.025em; /* desktop page title, big numbers */
+  --tracking-caps: 0.05em; /* uppercase eyebrows */
+
+  /* ---- Spacing (4px grid) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Radius ---- */
+  --r-xs: 4px; /* plate, tags */
+  --r-sm: 6px; /* menu items, seg buttons */
+  --r: 8px; /* buttons, inputs, notes (default) */
+  --r-md: 10px; /* tiles, menus, toasts, receipts */
+  --r-lg: 12px; /* auth card */
+  --r-xl: 14px; /* modal */
+  --r-pill: 999px; /* pills, avatars, round icon buttons */
+
+  /* ---- Control sizes ---- */
+  --control-sm: 32px;
+  --control: 40px; /* default button / icon button */
+  --control-input: 42px;
+  --control-lg: 48px; /* primary page actions */
+
+  /* ---- Layout ---- */
+  --page-max: 880px; /* single centred column */
+  --auth-max: 400px;
+  --modal-max: 460px;
+  --gutter: 16px; /* side padding on every screen */
+  --topbar-h: 60px; /* 68px on desktop */
+  --breakpoint: 720px; /* <= 720px: bottom tab bar (reference only) */
+
+  /* ---- Icons ---- */
+  --icon: 20px;
+  --icon-sm: 16px;
+  --icon-stroke: 1.75;
+}

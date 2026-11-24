@@ -34,6 +34,7 @@ const booking = (
 
 const unusedVehicles: VehicleRepository = {
   findById: async () => null,
+  findByIds: async () => [],
   listByOwner: async () => [],
   create: async () => {
     throw new Error("not used");
