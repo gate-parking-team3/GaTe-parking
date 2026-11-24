@@ -1,4 +1,5 @@
 import type {
+  CurrentReservation,
   ParkingLot,
   ParkingSpot,
   Reservation,
@@ -19,6 +20,7 @@ export const reservationApi = {
   create: (reservation: ReservationInput) =>
     apiClient.post<Reservation>("/reservations", reservation),
   mine: () => apiClient.get<Reservation[]>("/reservations/mine"),
+  current: () => apiClient.get<CurrentReservation[]>("/reservations/active"),
   get: (id: string) =>
     apiClient.get<Reservation>(`/reservations/${encodeURIComponent(id)}`),
   update: (id: string, changes: ReservationUpdate) =>
@@ -26,6 +28,8 @@ export const reservationApi = {
       `/reservations/${encodeURIComponent(id)}`,
       changes,
     ),
+  remove: (id: string) =>
+    apiClient.delete(`/reservations/${encodeURIComponent(id)}`),
   availableSpots: async (
     lotId: string,
     { evOnly, ...query }: AvailableSpotsQuery,

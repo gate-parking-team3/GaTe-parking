@@ -33,6 +33,20 @@ describe("reservationApi", () => {
     expect(get).toHaveBeenCalledWith("/reservations/mine");
   });
 
+  it("lists the user's upcoming and current reservations", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue([]);
+
+    await reservationApi.current();
+    expect(get).toHaveBeenCalledWith("/reservations/active");
+  });
+
+  it("deletes a reservation", async () => {
+    const del = vi.spyOn(apiClient, "delete").mockResolvedValue(undefined);
+
+    await reservationApi.remove("abc");
+    expect(del).toHaveBeenCalledWith("/reservations/abc");
+  });
+
   it("gets one reservation", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({});
 
