@@ -160,9 +160,9 @@ describe("Authenticated user experience", () => {
       "href",
       "/",
     );
-    expect(within(nav).getByRole("link", { name: "Reserve" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Book" })).toHaveAttribute(
       "href",
-      "/reserve",
+      "/book",
     );
     expect(
       within(nav).getByRole("link", { name: "Reservations" }),

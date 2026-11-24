@@ -3,9 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { reservationApi } from "../api/reservationApi";
 import { vehicleApi } from "../api/vehicleApi";
-import { toLocalInput } from "../components/ReservationEditForm";
 import type { Reservation } from "../types/reservation";
-import ReserveSpot from "./ReserveSpot";
+import Book from "./Book";
 
 const created: Reservation = {
   id: "res-1",
@@ -14,11 +13,11 @@ const created: Reservation = {
   spotId: "spot-1",
   lotId: "lot-1",
   status: "reserved",
-  startTime: "2099-01-10T09:00:00.000Z",
-  endTime: "2099-01-10T11:00:00.000Z",
+  startTime: new Date("2099-01-10T09:00").toISOString(),
+  endTime: new Date("2099-01-10T11:00").toISOString(),
 };
 
-describe("ReserveSpot", () => {
+describe("Book", () => {
   beforeEach(() => {
     vi.spyOn(vehicleApi, "list").mockResolvedValue([
       {
@@ -62,30 +61,34 @@ describe("ReserveSpot", () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
-        <ReserveSpot />
+        <Book />
       </MemoryRouter>,
     );
 
-    fireEvent.change(await screen.findByLabelText("Start"), {
-      target: { value: toLocalInput(created.startTime) },
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Book a spot" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(await screen.findByLabelText("Date"), {
+      target: { value: "2099-01-10" },
     });
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: toLocalInput(created.endTime) },
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: "09:00" },
     });
-    await screen.findByRole("option", { name: "Spot A1 (Standard, standard)" });
-    await user.selectOptions(screen.getByLabelText("Spot"), "spot-1");
-    await user.click(screen.getByRole("button", { name: "Reserve" }));
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "11:00" },
+    });
+    await user.click(await screen.findByRole("button", { name: "Spot A1" }));
+    await user.click(screen.getByRole("button", { name: "Book spot A1" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Your spot is reserved",
+      "Your spot is booked",
     );
     expect(
-      screen.getByRole("link", { name: "See my reservations" }),
+      screen.getByRole("link", { name: "See my bookings" }),
     ).toHaveAttribute("href", "/reservations");
 
-    await user.click(
-      screen.getByRole("button", { name: "Reserve another spot" }),
-    );
-    expect(await screen.findByLabelText("Vehicle")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Book another spot" }));
+    expect(await screen.findByLabelText("Date")).toBeInTheDocument();
   });
 });

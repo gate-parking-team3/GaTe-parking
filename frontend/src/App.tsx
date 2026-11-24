@@ -6,11 +6,11 @@ import RootLayout from "./layouts/RootLayout";
 import History from "./pages/History";
 import Login from "./pages/Login";
 import Activate from "./pages/Activate";
+import Book from "./pages/Book";
 import Employees from "./pages/Employees";
 import NotFound from "./pages/NotFound";
 import ParkingAvailability from "./pages/ParkingAvailability";
 import Reservations from "./pages/Reservations";
-import ReserveSpot from "./pages/ReserveSpot";
 import Vehicles from "./pages/Vehicles";
 
 export default function App() {
@@ -22,8 +22,8 @@ export default function App() {
           <Route path="activate" element={<Activate />} />
           <Route element={<ProtectedRoute />}>
             <Route index element={<ParkingAvailability />} />
+            <Route path="book" element={<Book />} />
             <Route path="reservations" element={<Reservations />} />
-            <Route path="reserve" element={<ReserveSpot />} />
             <Route path="vehicles" element={<Vehicles />} />
             <Route path="history" element={<History />} />
           </Route>

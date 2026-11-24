@@ -11,31 +11,29 @@ import type {
 } from "../types/reservation";
 import type { Vehicle } from "../types/vehicle";
 import ReservationCreateForm from "./ReservationCreateForm";
-import { toLocalInput } from "./ReservationEditForm";
 
-const startTime = "2099-01-10T09:00:00.000Z";
-const endTime = "2099-01-10T11:00:00.000Z";
+const startTime = new Date("2099-01-10T09:00").toISOString();
+const endTime = new Date("2099-01-10T11:00").toISOString();
 
-const vehicles: Vehicle[] = [
-  {
-    id: "car-1",
-    userId: "user-1",
-    licensePlate: "1AB2345",
-    brand: "Škoda",
-    model: "Octavia",
-    engineType: "combustion",
-    size: "standard",
-  },
-  {
-    id: "car-2",
-    userId: "user-1",
-    licensePlate: "2EV0001",
-    brand: "Škoda",
-    model: "Enyaq",
-    engineType: "electric",
-    size: "large",
-  },
-];
+const octavia: Vehicle = {
+  id: "car-1",
+  userId: "user-1",
+  licensePlate: "1AB2345",
+  brand: "Škoda",
+  model: "Octavia",
+  engineType: "combustion",
+  size: "standard",
+};
+
+const enyaq: Vehicle = {
+  id: "car-2",
+  userId: "user-1",
+  licensePlate: "2EV0001",
+  brand: "Škoda",
+  model: "Enyaq",
+  engineType: "electric",
+  size: "large",
+};
 
 const lots: ParkingLot[] = [
   {
@@ -56,12 +54,21 @@ const lots: ParkingLot[] = [
   },
 ];
 
-const spot: ParkingSpot = {
+const spotA1: ParkingSpot = {
   id: "spot-1",
   spotNumber: "A1",
   lotId: "lot-1",
   type: "standard",
   size: "large",
+  status: "free",
+};
+
+const spotE1: ParkingSpot = {
+  id: "spot-2",
+  spotNumber: "E1",
+  lotId: "lot-1",
+  type: "ev",
+  size: "standard",
   status: "free",
 };
 
@@ -86,84 +93,78 @@ function renderForm() {
   return { onCreated };
 }
 
-async function fillWindow(start = startTime, end = endTime) {
-  fireEvent.change(await screen.findByLabelText("Start"), {
-    target: { value: toLocalInput(start) },
+async function fillWindow(date = "2099-01-10", from = "09:00", to = "11:00") {
+  fireEvent.change(await screen.findByLabelText("Date"), {
+    target: { value: date },
   });
-  fireEvent.change(screen.getByLabelText("End"), {
-    target: { value: toLocalInput(end) },
-  });
-}
-
-async function waitForSpots() {
-  expect(
-    await screen.findByRole("option", { name: "Spot A1 (Standard, large)" }),
-  ).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("From"), { target: { value: from } });
+  fireEvent.change(screen.getByLabelText("To"), { target: { value: to } });
 }
 
 describe("ReservationCreateForm", () => {
   beforeEach(() => {
-    vi.spyOn(vehicleApi, "list").mockResolvedValue(vehicles);
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([octavia, enyaq]);
     vi.spyOn(reservationApi, "lots").mockResolvedValue(lots);
-    vi.spyOn(reservationApi, "availableSpots").mockResolvedValue([spot]);
+    vi.spyOn(reservationApi, "availableSpots").mockResolvedValue([
+      spotA1,
+      spotE1,
+    ]);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("asks for a time window before showing spots", async () => {
+  it("shows the three steps with the first vehicle and lot selected", async () => {
     renderForm();
 
+    expect(await screen.findByText("Vehicle")).toBeInTheDocument();
+    expect(screen.getByText("When")).toBeInTheDocument();
+    expect(screen.getByText("Spot")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Octavia/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Main lot" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("Tap a free spot")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Book" })).toBeDisabled();
+  });
+
+  it("shows the free spots as tiles, with a bolt on EV spots", async () => {
+    renderForm();
+    await fillWindow();
+
     expect(
-      await screen.findByText(/Choose a start and an end time/),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Vehicle")).toHaveValue("car-1");
-    expect(screen.getByLabelText("Parking lot")).toHaveValue("lot-1");
-    expect(reservationApi.availableSpots).not.toHaveBeenCalled();
+      await screen.findByRole("button", { name: "Spot A1" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Spot E1, EV" })).toBeVisible();
+    expect(screen.getByText("2 spots free for your vehicle.")).toBeVisible();
   });
 
   it("asks for free spots for the chosen vehicle, lot and time", async () => {
+    const user = userEvent.setup();
     renderForm();
     await fillWindow();
-    await waitForSpots();
+    await screen.findByRole("button", { name: "Spot A1" });
 
-    expect(reservationApi.availableSpots).toHaveBeenCalledWith("lot-1", {
+    expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-1", {
       vehicleId: "car-1",
       start: startTime,
       end: endTime,
-      evOnly: false,
     });
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Parking lot"),
-      "lot-2",
-    );
-
+    await user.click(screen.getByRole("button", { name: "North lot" }));
     expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-2", {
       vehicleId: "car-1",
       start: startTime,
       end: endTime,
-      evOnly: false,
     });
-  });
 
-  it("offers the EV-only filter for electric cars only", async () => {
-    const user = userEvent.setup();
-    renderForm();
-    await fillWindow();
-    await waitForSpots();
-
-    expect(screen.queryByLabelText("EV spots only")).not.toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("Vehicle"), "car-2");
-    await user.click(screen.getByLabelText("EV spots only"));
-
-    expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-1", {
+    await user.click(screen.getByRole("radio", { name: /Enyaq/ }));
+    expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-2", {
       vehicleId: "car-2",
       start: startTime,
       end: endTime,
-      evOnly: true,
     });
   });
 
@@ -174,10 +175,13 @@ describe("ReservationCreateForm", () => {
     const user = userEvent.setup();
     const { onCreated } = renderForm();
     await fillWindow();
-    await waitForSpots();
 
-    await user.selectOptions(screen.getByLabelText("Spot"), "spot-1");
-    await user.click(screen.getByRole("button", { name: "Reserve" }));
+    await user.click(await screen.findByRole("button", { name: "Spot A1" }));
+    expect(screen.getByRole("button", { name: "Spot A1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Book spot A1" }));
 
     expect(create).toHaveBeenCalledWith({
       vehicleId: "car-1",
@@ -192,12 +196,12 @@ describe("ReservationCreateForm", () => {
     const create = vi.spyOn(reservationApi, "create");
     renderForm();
     await fillWindow();
-    await waitForSpots();
+    await screen.findByRole("button", { name: "Spot A1" });
 
-    fireEvent.submit(screen.getByRole("button", { name: "Reserve" }));
+    fireEvent.submit(screen.getByRole("button", { name: "Book" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Choose a parking spot first.",
+      "Tap a free spot first.",
     );
     expect(create).not.toHaveBeenCalled();
   });
@@ -205,14 +209,34 @@ describe("ReservationCreateForm", () => {
   it("does not search when the end is before the start", async () => {
     const create = vi.spyOn(reservationApi, "create");
     renderForm();
-    await fillWindow(endTime, startTime);
+    await fillWindow("2099-01-10", "11:00", "09:00");
 
-    fireEvent.submit(screen.getByRole("button", { name: "Reserve" }));
+    expect(
+      screen.getByText("The end time must be after the start time."),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Spot A1" }),
+    ).not.toBeInTheDocument();
+    expect(reservationApi.availableSpots).not.toHaveBeenCalledWith(
+      "lot-1",
+      expect.objectContaining({ start: expect.any(String), end: startTime }),
+    );
+
+    fireEvent.submit(screen.getByRole("button", { name: "Book" }));
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a time that has already passed", async () => {
+    const create = vi.spyOn(reservationApi, "create");
+    renderForm();
+    await fillWindow("2000-01-10");
+    await screen.findByRole("button", { name: "Spot A1" });
+
+    fireEvent.submit(screen.getByRole("button", { name: "Book" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "The end time must be after the start time.",
+      "That time has already passed.",
     );
-    expect(reservationApi.availableSpots).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -222,7 +246,7 @@ describe("ReservationCreateForm", () => {
     await fillWindow();
 
     expect(
-      await screen.findByText(/No suitable spot is free for this time/),
+      await screen.findByText(/Nothing free for your vehicle at this time/),
     ).toBeInTheDocument();
   });
 
@@ -233,17 +257,28 @@ describe("ReservationCreateForm", () => {
     const user = userEvent.setup();
     const { onCreated } = renderForm();
     await fillWindow();
-    await waitForSpots();
 
-    await user.selectOptions(screen.getByLabelText("Spot"), "spot-1");
-    await user.click(screen.getByRole("button", { name: "Reserve" }));
+    await user.click(await screen.findByRole("button", { name: "Spot A1" }));
+    const lookups = vi.mocked(reservationApi.availableSpots).mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Book spot A1" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The spot is already booked for that time",
     );
-    await waitForSpots();
-    expect(reservationApi.availableSpots).toHaveBeenCalledTimes(2);
+    expect(
+      await screen.findByRole("button", { name: "Spot A1" }),
+    ).toBeInTheDocument();
+    expect(reservationApi.availableSpots).toHaveBeenCalledTimes(lookups + 1);
     expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it("shows a single vehicle without a picker, tagged EV when electric", async () => {
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([enyaq]);
+    renderForm();
+
+    expect(await screen.findByText("Škoda Enyaq")).toBeInTheDocument();
+    expect(screen.getByText("Electric")).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 
   it("asks to add a vehicle when the user has none", async () => {

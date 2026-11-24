@@ -8,7 +8,8 @@ import type {
   Reservation,
 } from "../types/reservation";
 import type { Vehicle } from "../types/vehicle";
-import { spotTypeLabels, toIso } from "./ReservationEditForm";
+import Icon from "./Icon";
+import Plate from "./Plate";
 
 type ReservationCreateFormProps = {
   onCreated: (reservation: Reservation) => void;
@@ -16,11 +17,44 @@ type ReservationCreateFormProps = {
 
 type SpotsResult = { key: string; spots?: ParkingSpot[]; error?: string };
 
+// A booking can start up to five minutes ago, so "now" in the form is forgiving.
+const GRACE_MS = 5 * 60 * 1000;
+
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
-// US 4: pick a vehicle, a lot and a time window, then one of the suitable free spots.
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/** Local date as the value of an <input type="date">. */
+function toDateInput(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Combine the date and time inputs into one moment, or null if either is empty. */
+function toMoment(date: string, time: string): Date | null {
+  if (!date || !time) return null;
+  const moment = new Date(`${date}T${time}`);
+  return Number.isNaN(moment.getTime()) ? null : moment;
+}
+
+function formatDay(date: string): string {
+  return new Date(`${date}T00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function defaultDate(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toDateInput(tomorrow);
+}
+
+// US 4: pick a vehicle, a time and one of the suitable free spots.
 export default function ReservationCreateForm({
   onCreated,
 }: ReservationCreateFormProps) {
@@ -29,9 +63,9 @@ export default function ReservationCreateForm({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [vehicleId, setVehicleId] = useState("");
   const [lotId, setLotId] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [evOnly, setEvOnly] = useState(false);
+  const [date, setDate] = useState(defaultDate);
+  const [from, setFrom] = useState("08:00");
+  const [to, setTo] = useState("17:00");
   const [spotId, setSpotId] = useState("");
   const [spotsResult, setSpotsResult] = useState<SpotsResult | null>(null);
   // Bumped after a failed booking so the free spots are loaded again.
@@ -42,25 +76,31 @@ export default function ReservationCreateForm({
   // Until the user picks something, the first vehicle and lot are selected.
   const selectedVehicle =
     vehicles?.find((vehicle) => vehicle.id === vehicleId) ?? vehicles?.[0];
-  const selectedLotId =
-    lots?.find((lot) => lot.id === lotId)?.id ?? lots?.[0]?.id;
-  const electric = selectedVehicle?.engineType === "electric";
-  const evFilter = electric && evOnly;
+  const selectedLot = lots?.find((lot) => lot.id === lotId) ?? lots?.[0];
+  const selectedLotId = selectedLot?.id;
 
-  const startIso = toIso(start);
-  const endIso = toIso(end);
-  const windowValid = startIso !== null && endIso !== null && endIso > startIso;
-  // The spots shown always belong to the current vehicle, lot, window and filter.
+  const startMoment = toMoment(date, from);
+  const endMoment = toMoment(date, to);
+  const startIso = startMoment?.toISOString() ?? null;
+  const endIso = endMoment?.toISOString() ?? null;
+  const windowValid =
+    startMoment !== null && endMoment !== null && endMoment > startMoment;
+  const windowProblem =
+    startMoment === null || endMoment === null
+      ? "Enter a date and both times."
+      : endMoment <= startMoment
+        ? "The end time must be after the start time."
+        : null;
+
+  // The spots shown always belong to the current vehicle, lot and time.
   const spotsKey =
     selectedVehicle && selectedLotId && windowValid
-      ? `${selectedVehicle.id}|${selectedLotId}|${startIso}|${endIso}|${evFilter}|${spotsVersion}`
+      ? `${selectedVehicle.id}|${selectedLotId}|${startIso}|${endIso}|${spotsVersion}`
       : null;
   const currentSpots = spotsResult?.key === spotsKey ? spotsResult : null;
   const loadingSpots = spotsKey !== null && currentSpots === null;
   const availableSpots = currentSpots?.spots ?? [];
-  const selectedSpotId = availableSpots.some((spot) => spot.id === spotId)
-    ? spotId
-    : "";
+  const selectedSpot = availableSpots.find((spot) => spot.id === spotId);
 
   useEffect(() => {
     let ignore = false;
@@ -97,7 +137,6 @@ export default function ReservationCreateForm({
         vehicleId: selectedVehicle.id,
         start: startIso,
         end: endIso,
-        evOnly: evFilter,
       })
       .then(
         (spots) => {
@@ -115,16 +154,20 @@ export default function ReservationCreateForm({
     return () => {
       ignore = true;
     };
-  }, [spotsKey, selectedVehicle, selectedLotId, startIso, endIso, evFilter]);
+  }, [spotsKey, selectedVehicle, selectedLotId, startIso, endIso]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!windowValid) {
-      setError("The end time must be after the start time.");
+    if (!windowValid || startIso === null || endIso === null) {
+      setError(windowProblem);
       return;
     }
-    if (!selectedVehicle || !selectedSpotId) {
-      setError("Choose a parking spot first.");
+    if (startMoment && startMoment.getTime() < Date.now() - GRACE_MS) {
+      setError("That time has already passed.");
+      return;
+    }
+    if (!selectedVehicle || !selectedSpot) {
+      setError("Tap a free spot first.");
       return;
     }
 
@@ -134,7 +177,7 @@ export default function ReservationCreateForm({
       onCreated(
         await reservationApi.create({
           vehicleId: selectedVehicle.id,
-          spotId: selectedSpotId,
+          spotId: selectedSpot.id,
           startTime: startIso,
           endTime: endIso,
         }),
@@ -148,111 +191,214 @@ export default function ReservationCreateForm({
     }
   }
 
-  if (loadError) return <p role="alert">{loadError}</p>;
-  if (vehicles === null || lots === null) return <p>Loading…</p>;
-  if (vehicles.length === 0) {
+  if (loadError) {
     return (
-      <p>
-        You have no registered vehicles yet.{" "}
-        <Link to="/vehicles">Add a vehicle</Link> before you reserve a spot.
-      </p>
+      <div role="alert" className="err">
+        {loadError}
+      </div>
     );
   }
-  if (lots.length === 0) return <p>There are no parking lots yet.</p>;
+  if (vehicles === null || lots === null) {
+    return <p className="muted">Loading…</p>;
+  }
+  if (vehicles.length === 0 || !selectedVehicle) {
+    return (
+      <section className="card">
+        <div className="empty">
+          <h3>Add your vehicle first</h3>
+          <p>You book parking for a specific vehicle.</p>
+          <Link className="btn btn-primary" to="/vehicles">
+            Add a vehicle
+          </Link>
+        </div>
+      </section>
+    );
+  }
+  if (lots.length === 0) {
+    return (
+      <section className="card">
+        <div className="empty">
+          <h3>No parking lots yet</h3>
+          <p>An administrator needs to add a parking lot first.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const vehicle = selectedVehicle;
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Vehicle
-        <select
-          value={selectedVehicle?.id}
-          onChange={(event) => setVehicleId(event.target.value)}
-        >
-          {vehicles.map((vehicle) => (
-            <option key={vehicle.id} value={vehicle.id}>
-              {vehicle.licensePlate} ({vehicle.brand} {vehicle.model})
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Parking lot
-        <select
-          value={selectedLotId}
-          onChange={(event) => setLotId(event.target.value)}
-        >
-          {lots.map((lot) => (
-            <option key={lot.id} value={lot.id}>
-              {lot.name}, {lot.address}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Start
-        <input
-          type="datetime-local"
-          value={start}
-          onChange={(event) => setStart(event.target.value)}
-          required
-        />
-      </label>
-
-      <label>
-        End
-        <input
-          type="datetime-local"
-          value={end}
-          onChange={(event) => setEnd(event.target.value)}
-          required
-        />
-      </label>
-
-      {electric && (
-        <label>
-          <input
-            type="checkbox"
-            checked={evOnly}
-            onChange={(event) => setEvOnly(event.target.checked)}
-          />
-          EV spots only
-        </label>
-      )}
-
-      {spotsKey === null ? (
-        <p>Choose a start and an end time to see the free spots.</p>
-      ) : (
-        <label>
-          Spot
-          <select
-            value={selectedSpotId}
-            onChange={(event) => setSpotId(event.target.value)}
-            disabled={loadingSpots || availableSpots.length === 0}
-            required
-          >
-            <option value="">Choose a spot</option>
-            {availableSpots.map((spot) => (
-              <option key={spot.id} value={spot.id}>
-                Spot {spot.spotNumber} ({spotTypeLabels[spot.type]}, {spot.size}
-                )
-              </option>
+    <form className="card" onSubmit={handleSubmit} noValidate>
+      <div className="step">
+        <div className="step-h">
+          <span className="step-n">1</span>Vehicle
+        </div>
+        {vehicles.length === 1 ? (
+          <div className="item-t">
+            <Plate plate={vehicle.licensePlate} />
+            <span>
+              {vehicle.brand} {vehicle.model}
+            </span>
+            {vehicle.engineType === "electric" && (
+              <span className="ev">
+                <Icon name="bolt" />
+                Electric
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="choice cars" role="radiogroup" aria-label="Vehicle">
+            {vehicles.map((item) => (
+              <label key={item.id}>
+                <input
+                  type="radio"
+                  name="vehicle"
+                  value={item.id}
+                  checked={item.id === vehicle.id}
+                  onChange={() => setVehicleId(item.id)}
+                />
+                <Plate plate={item.licensePlate} />
+                <span className="small">
+                  {item.brand} {item.model}
+                </span>
+              </label>
             ))}
-          </select>
-        </label>
-      )}
-      {loadingSpots && <p>Looking for free spots…</p>}
-      {currentSpots?.spots?.length === 0 && (
-        <p>No suitable spot is free for this time. Try another time or lot.</p>
-      )}
-      {currentSpots?.error && <p role="alert">{currentSpots.error}</p>}
+          </div>
+        )}
+      </div>
 
-      {error && <p role="alert">{error}</p>}
+      <div className="step">
+        <div className="step-h">
+          <span className="step-n">2</span>When
+        </div>
+        <div className="row">
+          <div className="field">
+            <label htmlFor="book-date">Date</label>
+            <input
+              id="book-date"
+              className="input"
+              type="date"
+              min={toDateInput(new Date())}
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="book-from">From</label>
+            <input
+              id="book-from"
+              className="input"
+              type="time"
+              step={900}
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="book-to">To</label>
+            <input
+              id="book-to"
+              className="input"
+              type="time"
+              step={900}
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              required
+            />
+          </div>
+        </div>
+      </div>
 
-      <button type="submit" disabled={saving || loadingSpots}>
-        {saving ? "Reserving…" : "Reserve"}
-      </button>
+      <div className="step">
+        <div className="step-h">
+          <span className="step-n">3</span>Spot
+        </div>
+        <div className="seg" role="group" aria-label="Parking lot">
+          {lots.map((lot) => (
+            <button
+              key={lot.id}
+              type="button"
+              aria-pressed={lot.id === selectedLotId}
+              onClick={() => setLotId(lot.id)}
+            >
+              {lot.name}
+            </button>
+          ))}
+        </div>
+
+        {windowProblem ? (
+          <div className="err">{windowProblem}</div>
+        ) : loadingSpots ? (
+          <p className="muted small">Looking for free spots…</p>
+        ) : currentSpots?.error ? (
+          <div role="alert" className="err">
+            {currentSpots.error}
+          </div>
+        ) : availableSpots.length === 0 ? (
+          <p className="muted small">
+            Nothing free for your vehicle at this time. Try the other lot or
+            another time.
+          </p>
+        ) : (
+          <>
+            <p className="muted small">
+              {availableSpots.length} spot
+              {availableSpots.length === 1 ? "" : "s"} free for your vehicle.
+            </p>
+            <div className="tiles">
+              {availableSpots.map((spot) => {
+                const selected = spot.id === selectedSpot?.id;
+                return (
+                  <button
+                    key={spot.id}
+                    type="button"
+                    className={selected ? "tile sel" : "tile"}
+                    aria-pressed={selected}
+                    aria-label={`Spot ${spot.spotNumber}${spot.type === "ev" ? ", EV" : ""}`}
+                    onClick={() => setSpotId(spot.id)}
+                  >
+                    <span className="tile-n">
+                      {spot.spotNumber}
+                      {spot.type === "ev" && <Icon name="bolt" />}
+                    </span>
+                    <span className="tile-m">
+                      {selected ? "Selected" : "Free"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="confirm">
+        {error ? (
+          <span role="alert" className="err">
+            {error}
+          </span>
+        ) : selectedSpot ? (
+          <span>
+            <b>Spot {selectedSpot.spotNumber}</b>, {selectedLot?.name} ·{" "}
+            {formatDay(date)} {from}–{to}
+          </span>
+        ) : (
+          <span className="muted">Tap a free spot</span>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary btn-lg"
+          disabled={saving || !selectedSpot}
+        >
+          {saving
+            ? "Booking…"
+            : selectedSpot
+              ? `Book spot ${selectedSpot.spotNumber}`
+              : "Book"}
+        </button>
+      </div>
     </form>
   );
 }
