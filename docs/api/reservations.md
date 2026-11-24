@@ -1,6 +1,6 @@
-# Parking lots and reservations (US 4, US 3, US 11)
+# Parking lots and reservations (US 4, US 3, US 7, US 11)
 
-Booking a parking spot for a vehicle and a time window (US 4), editing an upcoming booking (US 11), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
+Booking a parking spot for a vehicle and a time window (US 4), editing an upcoming booking (US 11), listing the caller's current reservations (US 7), then starting and ending the parking (US 3). MongoDB stores `_id`; the API returns `id`.
 
 ```json
 {
@@ -59,6 +59,49 @@ Body: `{ vehicleId, spotId, startTime, endTime }`. The lot is taken from the spo
 ### `GET /api/reservations/mine`
 
 The caller's reservations in every status, latest `startTime` first: `200` and an array.
+
+### `GET /api/reservations/active` (US 7)
+
+The caller's upcoming and in-progress reservations, soonest `startTime` first. The user id is taken from the token. The server's current time decides which `reserved` rows are still upcoming. Statuses are not changed by this call, and reaching `startTime` does not turn a reservation `active` (that stays US 3 Start Parking).
+
+| Status      | Included                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| `reserved`  | Only while `endTime` is after now. A row whose end has passed, or whose end is now, is left out. |
+| `active`    | Always, including when `endTime` has already passed.                                             |
+| `completed` | Never. History is US 2.                                                                          |
+| `cancelled` | Never. History is US 2.                                                                          |
+
+`startTime` and `endTime` stay the planned window. The real arrival is `ParkingSession.entryTime` and is not part of this response.
+
+`200` and an array. Each item:
+
+```json
+{
+  "id": "6911c0ffee0000000000abcd",
+  "status": "reserved",
+  "startTime": "2026-11-10T09:00:00.000Z",
+  "endTime": "2026-11-10T11:00:00.000Z",
+  "vehicle": {
+    "id": "6908abc12345678901234567",
+    "licensePlate": "1AB2345",
+    "brand": "Skoda",
+    "model": "Octavia",
+    "engineType": "combustion",
+    "size": "standard"
+  },
+  "parkingSpot": {
+    "id": "6911aaaa0000000000000001",
+    "spotNumber": "A1",
+    "type": "standard",
+    "size": "standard",
+    "lotId": "6911bbbb0000000000000001"
+  }
+}
+```
+
+A vehicle that is missing, or that belongs to someone else, is `null`. A spot that can no longer be loaded is `null` too. The reservation itself is still returned, without the other person's vehicle details. No matching reservations: `200` and `[]`.
+
+`401` `{ "error": "Not signed in" }` when the caller is not signed in.
 
 ### `GET /api/reservations/:id`
 

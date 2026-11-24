@@ -54,6 +54,10 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
     async findSpot(id) {
       return spots.find((spot) => spot.id === id) ?? null;
     },
+    async findSpotsByIds(ids) {
+      const wanted = new Set(ids);
+      return spots.filter((spot) => wanted.has(spot.id));
+    },
     async findBusySpotIds(lotId, window, now) {
       const lotSpotIds = new Set(
         spots.filter((s) => s.lotId === lotId).map((s) => s.id),
@@ -144,6 +148,17 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
       return reservations
         .filter((r) => r.userId === userId)
         .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+    },
+    async listCurrentByUser(userId, now) {
+      return reservations
+        .filter(
+          (reservation) =>
+            reservation.userId === userId &&
+            (reservation.status === "active" ||
+              (reservation.status === "reserved" &&
+                reservation.endTime.getTime() > now.getTime())),
+        )
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
     },
     async findById(id) {
       return reservations.find((r) => r.id === id) ?? null;
