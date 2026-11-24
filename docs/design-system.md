@@ -140,6 +140,7 @@ Other form pieces: `select` for `<select>`, `seg` (segmented control, active but
 
 - Licence plate: `<span className="plate"><span className="plate-eu">CZ</span><span className="plate-n">1AB 2345</span></span>`. Always show plates this way.
 - Spot map: `tiles` grid of `<button className="tile">` with `tile-n` (number) and `tile-m` (status line); states `sel`, `st-reserved`, `st-occupied`, or `disabled`.
+- Step flow (Book a spot): a `card` of numbered `step` blocks (`step-h` with `step-n` and a title), then a sticky `confirm` bar with the summary on the left and the one primary button on the right. Vehicle picker: `choice cars` (radio cards with a plate); lot picker: `seg`.
 - Big numbers: `hero` + `hero-num` for the user's spot; `figures` for KPI numbers; `bar` for availability; `eyebrow` for the small uppercase label above.
 - Empty state: `<div className="empty"><h3>No vehicles yet</h3><p>…</p><button className="btn btn-primary">Add a vehicle</button></div>`.
 
