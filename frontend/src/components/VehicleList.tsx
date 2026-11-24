@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { vehicleApi } from "../api/vehicleApi";
 import type { EngineType, Vehicle, VehicleSize } from "../types/vehicle";
+import Icon from "./Icon";
+import Plate from "./Plate";
 import VehicleEditForm from "./VehicleEditForm";
 
 const engineLabels: Record<EngineType, string> = {
@@ -14,7 +16,11 @@ const sizeLabels: Record<VehicleSize, string> = {
   large: "Large",
 };
 
-export default function VehicleList() {
+export default function VehicleList({
+  refreshTrigger = 0,
+}: {
+  refreshTrigger?: number;
+}) {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Vehicle | null>(null);
@@ -39,7 +45,7 @@ export default function VehicleList() {
     return () => {
       ignore = true;
     };
-  }, [reloadCount]);
+  }, [reloadCount, refreshTrigger]);
 
   function retry() {
     setError(null);
@@ -69,51 +75,51 @@ export default function VehicleList() {
   return (
     <section aria-label="Vehicles">
       {error ? (
-        <div role="alert">
+        <div role="alert" className="err">
           <p>{error}</p>
-          <button type="button" onClick={retry}>
+          <button type="button" className="btn btn-sm" onClick={retry}>
             Try again
           </button>
         </div>
       ) : vehicles === null ? (
-        <p>Loading vehicles…</p>
+        <p className="muted">Loading vehicles…</p>
       ) : vehicles.length === 0 ? (
-        <p>You have no vehicles yet.</p>
+        <div className="empty">
+          <h3>No vehicles yet</h3>
+          <p>You have no vehicles yet. Add one to book a spot.</p>
+        </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>License plate</th>
-              <th>Brand</th>
-              <th>Model</th>
-              <th>Engine type</th>
-              <th>Size</th>
-              <th>
-                <span hidden>Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {vehicles.map((vehicle) => (
-              <tr key={vehicle.id}>
-                <td>{vehicle.licensePlate}</td>
-                <td>{vehicle.brand}</td>
-                <td>{vehicle.model}</td>
-                <td>{engineLabels[vehicle.engineType]}</td>
-                <td>{sizeLabels[vehicle.size]}</td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(vehicle)}
-                    aria-label={`Edit ${vehicle.licensePlate}`}
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="card">
+          {vehicles.map((vehicle) => (
+            <div key={vehicle.id} className="item">
+              <Plate plate={vehicle.licensePlate} />
+              <div className="grow">
+                <div className="item-t">
+                  {vehicle.brand} {vehicle.model}
+                  {vehicle.engineType === "electric" && (
+                    <span className="ev">
+                      <Icon name="bolt" />
+                      EV
+                    </span>
+                  )}
+                </div>
+                <div className="item-s">
+                  <span>{engineLabels[vehicle.engineType]}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{sizeLabels[vehicle.size]}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setEditing(vehicle)}
+                aria-label={`Edit ${vehicle.licensePlate}`}
+              >
+                Edit
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

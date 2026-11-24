@@ -35,7 +35,7 @@ describe("VehicleList", () => {
     render(<VehicleList />);
 
     expect(screen.getByText("Loading vehicles…")).toBeInTheDocument();
-    expect(await screen.findByText("1AB2345")).toBeInTheDocument();
+    expect(await screen.findByText("1AB 2345")).toBeInTheDocument();
     expect(screen.queryByText("Loading vehicles…")).not.toBeInTheDocument();
   });
 
@@ -43,8 +43,8 @@ describe("VehicleList", () => {
     vi.spyOn(vehicleApi, "list").mockResolvedValue([octavia, enyaq]);
     render(<VehicleList />);
 
-    expect(await screen.findByText("2EV0001")).toBeInTheDocument();
-    expect(screen.getByText("Octavia")).toBeInTheDocument();
+    expect(await screen.findByText("2EV 0001")).toBeInTheDocument();
+    expect(screen.getByText("Škoda Octavia")).toBeInTheDocument();
     expect(screen.getByText("Electric")).toBeInTheDocument();
     expect(screen.getByText("Large")).toBeInTheDocument();
   });
@@ -54,7 +54,7 @@ describe("VehicleList", () => {
     render(<VehicleList />);
 
     expect(
-      await screen.findByText("You have no vehicles yet."),
+      await screen.findByRole("heading", { name: "No vehicles yet" }),
     ).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("VehicleList", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByText("1AB2345")).toBeInTheDocument();
+    expect(await screen.findByText("1AB 2345")).toBeInTheDocument();
     expect(list).toHaveBeenCalledTimes(2);
   });
 
@@ -89,9 +89,17 @@ describe("VehicleList", () => {
     expect(screen.getByLabelText("Model")).toHaveValue("Octavia");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Superb")).toBeInTheDocument();
-    expect(screen.queryByText("Octavia")).not.toBeInTheDocument();
-    expect(screen.getByText("Enyaq")).toBeInTheDocument();
+    expect(await screen.findByText("Škoda Superb")).toBeInTheDocument();
+    expect(screen.queryByText("Škoda Octavia")).not.toBeInTheDocument();
+    expect(screen.getByText("Škoda Enyaq")).toBeInTheDocument();
+  });
+
+  it("marks electric vehicles with the EV tag", async () => {
+    vi.spyOn(vehicleApi, "list").mockResolvedValue([octavia, enyaq]);
+    render(<VehicleList />);
+
+    expect(await screen.findByText("EV")).toBeInTheDocument();
+    expect(screen.getAllByText("EV")).toHaveLength(1);
   });
 
   it("goes back to the list when editing is cancelled", async () => {

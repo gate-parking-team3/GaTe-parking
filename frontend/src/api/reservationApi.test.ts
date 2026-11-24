@@ -6,6 +6,26 @@ describe("reservationApi", () => {
     vi.restoreAllMocks();
   });
 
+  it("lists the parking lots", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue([]);
+
+    await reservationApi.lots();
+    expect(get).toHaveBeenCalledWith("/lots");
+  });
+
+  it("creates a reservation with POST", async () => {
+    const post = vi.spyOn(apiClient, "post").mockResolvedValue({});
+    const input = {
+      vehicleId: "car-1",
+      spotId: "spot-1",
+      startTime: "2099-01-10T09:00:00.000Z",
+      endTime: "2099-01-10T11:00:00.000Z",
+    };
+
+    await reservationApi.create(input);
+    expect(post).toHaveBeenCalledWith("/reservations", input);
+  });
+
   it("lists the user's reservations", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValue([]);
 
@@ -42,6 +62,20 @@ describe("reservationApi", () => {
     ).resolves.toEqual(spots);
     expect(get).toHaveBeenCalledWith(
       "/lots/lot-1/available-spots?vehicleId=car-1&start=2099-01-10T09%3A00%3A00.000Z&end=2099-01-10T11%3A00%3A00.000Z",
+    );
+  });
+
+  it("adds the EV-only filter when asked", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ spots: [] });
+
+    await reservationApi.availableSpots("lot-1", {
+      vehicleId: "car-2",
+      start: "2099-01-10T09:00:00.000Z",
+      end: "2099-01-10T11:00:00.000Z",
+      evOnly: true,
+    });
+    expect(get).toHaveBeenCalledWith(
+      "/lots/lot-1/available-spots?vehicleId=car-2&start=2099-01-10T09%3A00%3A00.000Z&end=2099-01-10T11%3A00%3A00.000Z&evOnly=true",
     );
   });
 });

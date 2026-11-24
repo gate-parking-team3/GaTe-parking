@@ -1,13 +1,15 @@
 :root {
-  --color-bg: #f8f9fa;
-  --color-surface: #ffffff;
-  --color-text: #212529;
-  --color-text-muted: #495057;
-  --color-primary: #1a73e8;
-  --color-primary-hover: #1557b0;
-  --color-nav-active: #1a73e8;
-  --color-border: #dee2e6;
-  --header-height: 3.5rem;
+  /* Legacy names, mapped onto the design tokens in styles/tokens.css.
+     New code uses the token names directly (docs/design-system.md). */
+  --color-bg: var(--surface);
+  --color-surface: var(--bg);
+  --color-text: var(--ink);
+  --color-text-muted: var(--ink-2);
+  --color-primary: var(--blue);
+  --color-primary-hover: var(--blue-600);
+  --color-nav-active: var(--blue-600);
+  --color-border: var(--line);
+  --header-height: var(--topbar-h);
 }
 
 *,
@@ -19,15 +21,8 @@
 }
 
 html {
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
-  line-height: 1.5;
+  font-family: var(--font);
+  line-height: var(--leading);
   color: var(--color-text);
   background: var(--color-bg);
 }
