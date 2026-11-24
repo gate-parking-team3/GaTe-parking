@@ -71,6 +71,8 @@ export interface ReservationStore {
   findLot(id: string): Promise<ParkingLotRecord | null>;
   listSpots(lotId: string): Promise<ParkingSpotRecord[]>;
   findSpot(id: string): Promise<ParkingSpotRecord | null>;
+  /** The spots for these ids. Unknown ids are left out. */
+  findSpotsByIds(ids: string[]): Promise<ParkingSpotRecord[]>;
   /**
    * Spots in the lot that are taken at any moment of the window: by a blocking reservation or a parking session.
    * An open session counts for windows that start by `now` (see `sessionOverlapping`).
@@ -105,6 +107,12 @@ export interface ReservationStore {
    */
   deleteIfUnchanged(reservation: ReservationRecord): Promise<DeleteOutcome>;
   listByUser(userId: string): Promise<ReservationRecord[]>;
+  /**
+   * US 7: the caller's upcoming and in-progress reservations, soonest startTime first.
+   * `reserved` only while `endTime` is still after `now`. `active` even after `endTime`.
+   * `completed` and `cancelled` are left out, and so are edit holds.
+   */
+  listCurrentByUser(userId: string, now: Date): Promise<ReservationRecord[]>;
   findById(id: string): Promise<ReservationRecord | null>;
   /**
    * US 3 check-in: opens a parking session at `entryTime`, then `reserved` -> `active`.
@@ -172,6 +180,15 @@ export const mongoReservationStore: ReservationStore = {
     if (!mongoose.isValidObjectId(id)) return null;
     const doc = await ParkingSpotModel.findById(id).lean();
     return doc ? toSpot(doc) : null;
+  },
+
+  async findSpotsByIds(ids) {
+    const valid = [...new Set(ids)].filter((id) =>
+      mongoose.isValidObjectId(id),
+    );
+    if (valid.length === 0) return [];
+    const docs = await ParkingSpotModel.find({ _id: { $in: valid } }).lean();
+    return docs.map(toSpot);
   },
 
   async findBusySpotIds(lotId, window, now) {
@@ -305,6 +322,20 @@ export const mongoReservationStore: ReservationStore = {
   async listByUser(userId) {
     const docs = await ReservationModel.find({ userId, ...NOT_HOLD })
       .sort({ startTime: -1 })
+      .lean();
+    return docs.map(toReservation);
+  },
+
+  async listCurrentByUser(userId, now) {
+    const docs = await ReservationModel.find({
+      userId,
+      ...NOT_HOLD,
+      $or: [
+        { status: "reserved", endTime: { $gt: now } },
+        { status: "active" },
+      ],
+    })
+      .sort({ startTime: 1 })
       .lean();
     return docs.map(toReservation);
   },

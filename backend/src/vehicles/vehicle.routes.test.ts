@@ -38,6 +38,12 @@ function memoryVehicles(): VehicleRepository {
     async findById(id) {
       return records.get(id) ?? null;
     },
+    async findByIds(ids, userId) {
+      return ids.flatMap((id) => {
+        const record = records.get(id);
+        return record?.userId === userId ? [record] : [];
+      });
+    },
     async update(id, patch) {
       const current = records.get(id);
       if (!current) return null;

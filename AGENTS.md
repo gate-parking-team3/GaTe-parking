@@ -49,6 +49,17 @@ Assume the user does not know git. Explain what you are about to do in one plain
 
 Stack: React + TypeScript (Vite) frontend, Node.js + Express + TypeScript backend, MongoDB (Mongoose). npm workspaces; run `npm run check` (format, lint, types, tests, build) before committing or opening a PR; it must pass. Do not introduce other frameworks or dependency managers without team agreement. New contributors follow `CONTRIBUTING.md`.
 
+## Frontend design (always follow when touching `frontend/`)
+
+Every screen must match the team's design reference. The rules are in `docs/design-system.md`; read it before writing UI.
+
+- Colours, fonts, spacing, radii and sizes come only from `frontend/src/styles/tokens.css` as `var(--token)`. No raw `#hex`, `rgb()` or named colours anywhere else (`design-tokens.test.ts` fails the build).
+- Use the shared classes in `frontend/src/styles/components.css` (`btn btn-primary`, `field`, `input`, `pill green`, `card`, `item`, `tbl`, `tile`, `modal`, `plate`…) before writing new CSS. New CSS is built from tokens.
+- No inline `style={{}}` for colour, font or spacing; no new UI libraries (Tailwind, MUI, Bootstrap…).
+- Flat white UI with one blue accent; green/amber/red only for status, mapped as in the doc. One primary button per area.
+- Works at 360px wide; labels on every input, `aria-label` on icon-only buttons, visible focus.
+- Need a new token or component? Tell the user to agree it with the team, then add it to the token/component files and the doc in the same PR.
+
 ## Domain reminders
 
 - Roles: signed-in user and administrator. Admins can edit and delete any reservation; users only their own.
