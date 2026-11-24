@@ -254,7 +254,7 @@ describe("Authenticated user experience", () => {
   it("renders direct routes: /vehicles and /history", async () => {
     const { unmount } = renderApp("/vehicles");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "My Vehicles" }),
+      await screen.findByRole("heading", { level: 1, name: "My vehicles" }),
     ).toBeInTheDocument();
     unmount();
 
