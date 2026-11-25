@@ -11,7 +11,10 @@ import {
   createLotRouter,
   createReservationRouter,
 } from "./reservation.routes.js";
-import type { ReservationStore } from "./reservation.store.js";
+import type {
+  ParkingSessionRecord,
+  ReservationStore,
+} from "./reservation.store.js";
 
 const id = (n: number) => n.toString(16).padStart(24, "0");
 const LOT = id(1);
@@ -135,7 +138,136 @@ describe("GET /api/lots", () => {
   it("lists the parking lots", async () => {
     const res = await request(appAs(ANNA)).get("/api/lots");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([expect.objectContaining({ id: LOT })]);
+    expect(res.body).toEqual([
+      expect.objectContaining({
+        id: LOT,
+        availability: {
+          total: 4,
+          available: 4,
+          occupied: 0,
+          reserved: 0,
+        },
+      }),
+    ]);
+  });
+
+  it("counts reserved bookings and active parking sessions in the current availability", async () => {
+    const booking: ReservationRecord = {
+      id: id(300),
+      userId: ANNA,
+      vehicleId: SKODA,
+      spotId: STANDARD.id,
+      lotId: LOT,
+      status: "reserved",
+      startTime: new Date("2026-11-10T07:00:00Z"),
+      endTime: new Date("2026-11-10T09:00:00Z"),
+    };
+    const session: ParkingSessionRecord = {
+      id: id(301),
+      spotId: EV.id,
+      vehicleId: TESLA,
+      reservationId: id(302),
+      entryTime: new Date("2026-11-10T07:30:00Z"),
+      exitTime: null,
+    };
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD, SMALL, EV, DISABLED],
+      reservations: [booking],
+      sessions: [session],
+    });
+
+    const res = await request(appAs(ANNA)).get("/api/lots");
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].availability).toEqual({
+      total: 4,
+      available: 2,
+      occupied: 1,
+      reserved: 1,
+    });
+  });
+});
+
+describe("GET /api/lots/:lotId", () => {
+  it("returns lot details and current spot statuses", async () => {
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [
+        { ...STANDARD, status: "reserved" },
+        { ...SMALL, status: "occupied" },
+        EV,
+        DISABLED,
+      ],
+    });
+
+    const res = await request(appAs(ANNA)).get(`/api/lots/${LOT}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ...LOTS[0],
+      availability: {
+        total: 4,
+        available: 2,
+        occupied: 1,
+        reserved: 1,
+      },
+      spots: [
+        { ...STANDARD, status: "reserved" },
+        { ...SMALL, status: "occupied" },
+        EV,
+        DISABLED,
+      ],
+    });
+  });
+
+  it("reflects current bookings and open sessions in individual spot statuses", async () => {
+    const booking: ReservationRecord = {
+      id: id(300),
+      userId: ANNA,
+      vehicleId: SKODA,
+      spotId: STANDARD.id,
+      lotId: LOT,
+      status: "reserved",
+      startTime: new Date("2026-11-10T07:00:00Z"),
+      endTime: new Date("2026-11-10T09:00:00Z"),
+    };
+    const session: ParkingSessionRecord = {
+      id: id(301),
+      spotId: EV.id,
+      vehicleId: TESLA,
+      reservationId: id(302),
+      entryTime: new Date("2026-11-10T07:30:00Z"),
+      exitTime: null,
+    };
+    store = memoryReservationStore({
+      lots: LOTS,
+      spots: [STANDARD, SMALL, EV, DISABLED],
+      reservations: [booking],
+      sessions: [session],
+    });
+
+    const res = await request(appAs(ANNA)).get(`/api/lots/${LOT}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.spots).toEqual([
+      { ...STANDARD, status: "reserved" },
+      SMALL,
+      { ...EV, status: "occupied" },
+      DISABLED,
+    ]);
+  });
+
+  it("rejects a malformed lot id", async () => {
+    const res = await request(appAs(ANNA)).get("/api/lots/not-an-id");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid parking lot id" });
+  });
+
+  it("returns a not-found response for an unknown lot", async () => {
+    const res = await request(appAs(ANNA)).get(`/api/lots/${id(999)}`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Parking lot not found" });
   });
 });
 
