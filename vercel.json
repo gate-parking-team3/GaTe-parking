@@ -9,8 +9,7 @@
     },
     "frontend": {
       "root": "frontend",
-      "framework": "vite",
-      "buildCommand": "npm run build && mkdir -p dist/reservations && cp dist/index.html dist/reservations/index.html"
+      "framework": "vite"
     }
   },
   "rewrites": [
@@ -21,7 +20,7 @@
       }
     },
     {
-      "source": "/vehicles",
+      "source": "/((?!api/|assets/)[^.]*)",
       "destination": "/index.html"
     },
     {
