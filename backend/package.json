@@ -10,7 +10,8 @@
     "create-admin": "tsx src/create-admin.ts",
     "seed": "tsx src/seed/seed.ts",
     "test": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:vercel": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/index.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -28,6 +29,7 @@
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.5",
+    "esbuild": "0.28.2",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "vitest": "^5.0.5"
