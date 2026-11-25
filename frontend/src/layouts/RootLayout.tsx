@@ -12,7 +12,11 @@ export default function RootLayout() {
     { to: "/history", label: "History" },
     { to: "/notifications", label: "Notifications" },
     ...(user?.role === "admin"
-      ? [{ to: "/admin/employees", label: "Employees" }]
+      ? [
+          { to: "/admin/employees", label: "Employees" },
+          { to: "/admin/spots", label: "Spots" },
+          { to: "/admin/activity-history", label: "Activity History" },
+        ]
       : []),
   ];
 
