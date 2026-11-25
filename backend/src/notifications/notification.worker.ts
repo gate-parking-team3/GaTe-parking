@@ -13,6 +13,13 @@ import {
 
 const MINUTE = 60_000;
 
+/**
+ * A scheduled job (Vercel) runs far less often than the one-minute timer, so it
+ * looks back further for cancellations. Notifications are stored once per
+ * reservation and type, so looking at the same cancellation again is harmless.
+ */
+export const SCHEDULED_CANCEL_LOOKBACK_MS = 60 * MINUTE;
+
 export type CheckedReservation = {
   id: string;
   userId: string;
@@ -86,6 +93,7 @@ export function dueNotifications(
 export async function checkNotificationEvents(
   now = new Date(),
   store: NotificationStore = mongoNotificationStore,
+  cancelLookbackMs = 2 * MINUTE,
 ): Promise<void> {
   const soon = new Date(now.getTime() + 30 * MINUTE);
   const query: QueryFilter<ReservationSchemaFields> = {
@@ -94,7 +102,7 @@ export async function checkNotificationEvents(
       // Only recent cancellations, so old ones are not re-sent or loaded on every tick.
       {
         status: "cancelled",
-        updatedAt: { $gte: new Date(now.getTime() - 2 * MINUTE) },
+        updatedAt: { $gte: new Date(now.getTime() - cancelLookbackMs) },
       },
       { status: "reserved", startTime: { $gte: now, $lte: soon } },
       {

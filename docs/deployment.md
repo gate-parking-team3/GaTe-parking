@@ -28,6 +28,7 @@ Deep links such as `/reservations` work because `vercel.json` rewrites every pat
    - `MONGODB_URI`: the Atlas connection string from step 1.
    - `JWT_SECRET`: a long random string.
    - `TRUST_PROXY`: `1`, so rate limiting sees real visitor IPs behind Vercel's proxy.
+   - `CRON_SECRET`: a long random string (for example `openssl rand -base64 48`). Vercel sends it with every scheduled run, and the notification endpoint refuses requests without it.
 3. Deploy, then open `https://<vercel-url>/api/health`. It must return `{"status":"ok","db":"up"}`.
 
 ## Day to day
@@ -39,7 +40,7 @@ Deep links such as `/reservations` work because `vercel.json` rewrites every pat
 
 ## Known limits
 
-- **Notifications (US 8)**: the backend normally checks reservations for due notifications every minute from a timer in `server.ts`. A serverless function has no long-running timer, so on Vercel that check does not run until it is moved to a scheduled job (not set up yet).
+- **Notifications (US 8)**: locally and in Docker the backend checks reservations for due notifications every minute from a timer in `server.ts`. A serverless function has no timer, so on Vercel the `notifications` schedule in `vercel.json` calls `GET /api/cron/notifications` every 15 minutes instead (protected by `CRON_SECRET`). Schedules run only on production deployments, not on previews. On the Hobby plan 15 minutes is the shortest interval, and Vercel may start a run up to 15 minutes late, so a "starts in 30 minutes" notice can arrive late and a short "ends in 15 minutes" notice can be missed. A Pro plan allows a one-minute schedule (`* * * * *`) that matches the local behaviour.
 - **Atlas M0** has 512 MB of storage and no automatic backups.
 
 ## Docker and Render (optional)

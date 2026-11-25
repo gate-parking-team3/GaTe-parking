@@ -15,7 +15,13 @@ import {
 import { mongoAuditLogStore } from "./audit/audit.store.js";
 import type { AuditLogStore } from "./audit/audit.types.js";
 import { authRouter } from "./auth/auth.routes.js";
+import { createNotificationCronRouter } from "./notifications/notification.cron.js";
 import { createNotificationRouter } from "./notifications/notification.routes.js";
+import { mongoNotificationStore } from "./notifications/notification.store.js";
+import {
+  checkNotificationEvents,
+  SCHEDULED_CANCEL_LOOKBACK_MS,
+} from "./notifications/notification.worker.js";
 import { requireAuth, requireRole } from "./auth/middleware.js";
 import {
   apiLimiter,
@@ -47,6 +53,10 @@ type AppOptions = {
   auditLogs?: AuditLogStore;
   lots?: ParkingLotLookup;
   now?: () => Date;
+  /** Secret the scheduled notification job must send (CRON_SECRET). */
+  cronSecret?: string;
+  /** What the scheduled job runs; replaced in tests. */
+  runNotificationCheck?: () => Promise<void>;
 };
 
 export function createApp({
@@ -58,6 +68,13 @@ export function createApp({
   auditLogs = mongoAuditLogStore,
   lots = mongoParkingLotLookup,
   now = () => new Date(),
+  cronSecret = process.env.CRON_SECRET,
+  runNotificationCheck = () =>
+    checkNotificationEvents(
+      new Date(),
+      mongoNotificationStore,
+      SCHEDULED_CANCEL_LOOKBACK_MS,
+    ),
 }: AppOptions = {}) {
   const app = express();
   // Behind a hosting proxy (Render) the real client IP is in X-Forwarded-For.
@@ -134,6 +151,14 @@ export function createApp({
     "/api/reservations",
     requireAuth(users, jwtSecret),
     createReservationRouter(),
+  );
+  // Called by the scheduled job on Vercel, protected by CRON_SECRET instead of a sign-in.
+  app.use(
+    "/api/cron/notifications",
+    createNotificationCronRouter({
+      secret: cronSecret,
+      run: runNotificationCheck,
+    }),
   );
 
   app.use(jsonErrors);

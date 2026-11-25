@@ -29,5 +29,12 @@
         "service": "frontend"
       }
     }
-  ]
+  ],
+  "schedules": {
+    "notifications": {
+      "schedule": "*/15 * * * *",
+      "path": "/api/cron/notifications",
+      "requestMethod": "GET"
+    }
+  }
 }
