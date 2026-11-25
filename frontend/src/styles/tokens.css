@@ -112,6 +112,9 @@
   --auth-max: 400px;
   --modal-max: 460px;
   --gutter: 16px; /* side padding on every screen */
+  --page-gap: var(
+    --space-6
+  ); /* space between page sections (48px on desktop) */
   --topbar-h: 60px; /* 68px on desktop */
   --breakpoint: 720px; /* <= 720px: bottom tab bar (reference only) */
 

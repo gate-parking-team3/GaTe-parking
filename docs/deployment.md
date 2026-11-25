@@ -8,9 +8,7 @@
 
 One Vercel project deploys both parts as **services** (`vercel.json` in the repository root). Requests to `/api/*` go to the `backend` service, everything else to the `frontend` service, so the app stays on one domain (no CORS or cookie issues) and the frontend code calls `/api/...` exactly as in local development. The services do not call each other, so no service bindings are needed.
 
-How the backend runs on Vercel: `backend/src/index.ts` exports the Express app (a serverless function cannot call `listen()`), and `backend/src/serverless.ts` connects to MongoDB on the first request. Vercel runs `npm run build:vercel`, which bundles the app into one ES module (`backend/dist/index.mjs`). The committed `backend/index.mjs` is the entrypoint and re-exports that bundle. Locally and in Docker the server still starts from `backend/src/server.ts`.
-
-Deep links such as `/reservations` work because `vercel.json` rewrites every path without a file extension to the frontend's `index.html`.
+How the backend runs on Vercel: `backend/src/index.ts` exports the Express app (a serverless function cannot call `listen()`), and `backend/src/serverless.ts` connects to MongoDB on the first request. Locally and in Docker the server still starts from `backend/src/server.ts`.
 
 ## One-time setup (maintainer)
 

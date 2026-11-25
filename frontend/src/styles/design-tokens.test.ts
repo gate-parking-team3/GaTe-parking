@@ -8,7 +8,7 @@ const SRC = join(import.meta.dirname, "..");
 
 // Files written before the design system. Remove a file from this list when
 // you move it onto the tokens; never add new files here.
-const LEGACY = ["App.css", "pages/Activate.tsx", "pages/Employees.tsx"];
+const LEGACY: string[] = [];
 const TOKENS = "styles/tokens.css";
 
 const RAW_COLOUR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
