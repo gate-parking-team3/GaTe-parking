@@ -4,7 +4,8 @@
     "backend": {
       "root": "backend",
       "framework": "express",
-      "entrypoint": "src/index.ts"
+      "buildCommand": "npm run build:vercel",
+      "entrypoint": "index.mjs"
     },
     "frontend": {
       "root": "frontend",
@@ -17,6 +18,10 @@
       "destination": {
         "service": "backend"
       }
+    },
+    {
+      "source": "/((?!api/|assets/)[^.]*)",
+      "destination": "/index.html"
     },
     {
       "source": "/(.*)",
