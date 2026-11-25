@@ -10,6 +10,7 @@ export default function RootLayout() {
     { to: "/reservations", label: "Reservations" },
     { to: "/vehicles", label: "Vehicles" },
     { to: "/history", label: "History" },
+    { to: "/notifications", label: "Notifications" },
     ...(user?.role === "admin"
       ? [
           { to: "/admin/employees", label: "Employees" },
