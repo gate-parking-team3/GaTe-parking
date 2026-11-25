@@ -21,6 +21,13 @@
       }
     },
     {
+      "source": "/((?!assets/)[^.]*)",
+      "destination": {
+        "service": "frontend",
+        "path": "/"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "service": "frontend"
