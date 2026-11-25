@@ -21,6 +21,26 @@
       }
     },
     {
+      "source": "/reservations",
+      "destination": {
+        "service": "frontend",
+        "path": "/"
+      }
+    },
+    {
+      "source": "/vehicles",
+      "destination": {
+        "service": "frontend",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/book",
+      "destination": {
+        "service": "frontend"
+      }
+    },
+    {
       "source": "/((?!assets/)[^.]*)",
       "destination": {
         "service": "frontend",
