@@ -14,23 +14,27 @@ export default function ProtectedRoute({
 
   if (isRestoring) {
     return (
-      <p className="page-description" role="status">
-        Loading…
-      </p>
+      <div className="page">
+        <p className="muted" role="status">
+          Loading…
+        </p>
+      </div>
     );
   }
 
   if (restorationError) {
     return (
-      <div className="session-error" role="alert">
-        <p className="session-error__message">{restorationError}</p>
-        <button
-          type="button"
-          className="session-error__retry"
-          onClick={retryRestoration}
-        >
-          Retry
-        </button>
+      <div className="page">
+        <div className="err" role="alert">
+          <p>{restorationError}</p>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={retryRestoration}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -41,11 +45,13 @@ export default function ProtectedRoute({
 
   if (requiredRole && user.role !== requiredRole) {
     return (
-      <div className="access-denied" role="alert">
-        <h1 className="page-heading">Access Denied</h1>
-        <p className="page-description">
-          You do not have permission to access this page.
-        </p>
+      <div className="page" role="alert">
+        <div className="head">
+          <div>
+            <h1>Access Denied</h1>
+            <p>You do not have permission to access this page.</p>
+          </div>
+        </div>
       </div>
     );
   }

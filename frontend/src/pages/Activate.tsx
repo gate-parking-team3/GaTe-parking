@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { authApi } from "../api/authApi";
 import { ApiError } from "../api/client";
+import Icon from "../components/Icon";
 import { useAuth } from "../context/AuthContext";
 
 const TOKEN_PATTERN = /^[a-f\d]{64}$/;
@@ -31,19 +32,23 @@ export default function Activate() {
   // Explain the situation and provide an explicit logout action while preserving the activation URL.
   if (user && !isRestoring) {
     return (
-      <div className="activate-container">
-        <h1 className="page-heading">Account Activation</h1>
-        <div className="session-error" role="alert">
-          <p className="session-error__message">
-            You are currently signed in as <strong>{user.name}</strong> (
-            {user.email}). To activate another employee account, please sign out
-            first.
-          </p>
-          <button
-            type="button"
-            className="session-error__retry"
-            onClick={logout}
-          >
+      <div className="auth">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            P
+          </span>
+          GaŤe Parking
+        </div>
+        <div className="auth-card">
+          <h1>Account Activation</h1>
+          <div className="err" role="alert">
+            <p>
+              You are currently signed in as <strong>{user.name}</strong> (
+              {user.email}). To activate another employee account, please sign
+              out first.
+            </p>
+          </div>
+          <button type="button" className="btn btn-block" onClick={logout}>
             Sign out
           </button>
         </div>
@@ -54,19 +59,25 @@ export default function Activate() {
   // Missing or malformed token: do not show a form or manual entry field.
   if (!isTokenValid) {
     return (
-      <div className="activate-container">
-        <h1 className="page-heading">Account Activation</h1>
-        <div className="login-form__error" role="alert">
-          <p>
-            Invalid or missing activation link. The link may be incomplete or
-            corrupted. Please contact your administrator for a new invitation.
-          </p>
+      <div className="auth">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            P
+          </span>
+          GaŤe Parking
         </div>
-        <p className="page-description" style={{ marginTop: "1rem" }}>
-          <Link to="/login" className="not-found__link">
+        <div className="auth-card">
+          <h1>Account Activation</h1>
+          <div className="err" role="alert">
+            <p>
+              Invalid or missing activation link. The link may be incomplete or
+              corrupted. Please contact your administrator for a new invitation.
+            </p>
+          </div>
+          <Link to="/login" className="btn btn-lg btn-block">
             Return to Sign in
           </Link>
-        </p>
+        </div>
       </div>
     );
   }
@@ -74,31 +85,30 @@ export default function Activate() {
   // Successfully activated: offer link to sign in.
   if (isSuccess) {
     return (
-      <div className="activate-container">
-        <h1 className="page-heading">Account Activated</h1>
-        <div
-          className="login-form__success"
-          role="status"
-          style={{
-            padding: "0.75rem 1rem",
-            borderRadius: "0.375rem",
-            background: "#d1e7dd",
-            color: "#0f5132",
-            marginBottom: "1rem",
-          }}
-        >
-          <p>
-            Your password has been set and your account is now active. You can
-            now sign in with your email and new password.
-          </p>
+      <div className="auth">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            P
+          </span>
+          GaŤe Parking
         </div>
-        <Link
-          to="/login"
-          className="login-form__submit"
-          style={{ display: "inline-block", textDecoration: "none" }}
-        >
-          Go to Sign in
-        </Link>
+        <div className="auth-card">
+          <div className="success">
+            <span className="ok">
+              <Icon name="check" />
+            </span>
+            <h1>Account Activated</h1>
+            <div className="ok-note" role="status">
+              <p>
+                Your password has been set and your account is now active. You
+                can now sign in with your email and new password.
+              </p>
+            </div>
+          </div>
+          <Link to="/login" className="btn btn-primary btn-lg btn-block">
+            Go to Sign in
+          </Link>
+        </div>
       </div>
     );
   }
@@ -152,39 +162,35 @@ export default function Activate() {
   }
 
   return (
-    <div className="activate-container">
-      <h1 className="page-heading">Set Your Password</h1>
-      <p className="page-description">
-        Please choose a password to activate your employee account.
-      </p>
-
-      {formError && (
-        <div
-          className="login-form__error"
-          role="alert"
-          style={{ marginBottom: "1rem", marginTop: "1rem" }}
-        >
-          {formError}
+    <div className="auth">
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">
+          P
+        </span>
+        GaŤe Parking
+      </div>
+      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+        <div>
+          <h1>Set Your Password</h1>
+          <p className="muted">
+            Please choose a password to activate your employee account.
+          </p>
         </div>
-      )}
-
-      <form
-        className="login-form"
-        onSubmit={handleSubmit}
-        noValidate
-        style={{ marginTop: "1rem" }}
-      >
-        <div className="login-form__field">
-          <label htmlFor="activate-password" className="login-form__label">
-            New Password
-          </label>
+        {formError && (
+          <div className="err" role="alert">
+            {formError}
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="activate-password">New Password</label>
           <input
             id="activate-password"
-            className="login-form__input"
+            className="input"
             type="password"
             autoComplete="new-password"
             required
             aria-describedby="password-requirements"
+            aria-invalid={fieldErrors.password ? true : undefined}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -193,35 +199,26 @@ export default function Activate() {
               }
             }}
           />
-          <small
-            id="password-requirements"
-            style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}
-          >
+          <span id="password-requirements" className="hint">
             Password must be at least 8 characters and at most 72 bytes.
-          </small>
+          </span>
           {fieldErrors.password && (
-            <span
-              role="alert"
-              style={{ fontSize: "0.8125rem", color: "#842029" }}
-            >
+            <span role="alert" className="field-err">
               {fieldErrors.password}
             </span>
           )}
         </div>
-
-        <div className="login-form__field">
-          <label
-            htmlFor="activate-confirm-password"
-            className="login-form__label"
-          >
+        <div className="field">
+          <label htmlFor="activate-confirm-password">
             Confirm New Password
           </label>
           <input
             id="activate-confirm-password"
-            className="login-form__input"
+            className="input"
             type="password"
             autoComplete="new-password"
             required
+            aria-invalid={fieldErrors.confirmPassword ? true : undefined}
             value={confirmPassword}
             onChange={(e) => {
               setConfirmPassword(e.target.value);
@@ -234,18 +231,14 @@ export default function Activate() {
             }}
           />
           {fieldErrors.confirmPassword && (
-            <span
-              role="alert"
-              style={{ fontSize: "0.8125rem", color: "#842029" }}
-            >
+            <span role="alert" className="field-err">
               {fieldErrors.confirmPassword}
             </span>
           )}
         </div>
-
         <button
           type="submit"
-          className="login-form__submit"
+          className="btn btn-primary btn-lg btn-block"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Activating account…" : "Activate account"}

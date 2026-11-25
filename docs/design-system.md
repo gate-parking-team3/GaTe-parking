@@ -146,7 +146,7 @@ Other form pieces: `select` for `<select>`, `seg` (segmented control, active but
 
 **Overlays**: modal = `backdrop` > `modal` > `modal-h` / `modal-b` / `modal-f` (buttons right-aligned, primary last). Details inside modals use `kv` (`<dl>`). Short confirmations use a `toast` (dark, bottom centre, optional undo button). Account menu = `menu`.
 
-**Shell**: top bar = `top` > `top-in` > `brand` (`brand-mark` "P" + "GaŤe Parking"), `tabs` (links get class `on` or `active`), `top-right` (`bell`, `avatar`). On phones the same links go in `bottom-tabs`. Sign in / activate screens use `auth` > `auth-card`.
+**Shell**: top bar = `top` > `top-in` > `brand` (`brand-mark` "P" + "GaŤe Parking"), `tabs` (links get class `on` or `active`), `top-right` (`bell`, `me-btn` > `avatar` opening a `menu` with `menu-head`). Admin pages add a `subnav` > `seg` of links under the top bar. On phones the same links go in `bottom-tabs`. Sign in / activate screens use `auth` > `auth-card`.
 
 **Icons**: 24×24 stroke SVGs with class `i` (or `i i-sm`), `stroke="currentColor"`, no fill. Pair with text; icon-only buttons need `aria-label`.
 

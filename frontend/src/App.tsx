@@ -1,5 +1,4 @@
 import { Routes, Route } from "react-router";
-import "./App.css";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import RootLayout from "./layouts/RootLayout";

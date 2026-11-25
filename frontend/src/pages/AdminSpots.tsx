@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { adminApi } from "../api/adminApi";
 import { ApiError } from "../api/client";
+import Icon from "../components/Icon";
 import type {
   ParkingLot,
   ParkingSpot,
@@ -8,6 +9,15 @@ import type {
   ParkingSpotStatus,
   ParkingSpotType,
 } from "../types/spot";
+
+const STATUS_PILL = {
+  free: { label: "Free", tone: "green" },
+  reserved: { label: "Booked", tone: "blue" },
+  occupied: { label: "Vehicle parked", tone: "gray" },
+} as const;
+
+const capitalize = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1);
 
 export default function AdminSpots() {
   const [lots, setLots] = useState<ParkingLot[] | null>(null);
@@ -227,7 +237,7 @@ export default function AdminSpots() {
           <h2 className="section-title">
             Existing Spots in Selected Lot ({spots.length})
           </h2>
-          <div className="tbl-wrap">
+          <div className="tbl-wrap card">
             <table className="tbl">
               <thead>
                 <tr>
@@ -240,10 +250,25 @@ export default function AdminSpots() {
               <tbody>
                 {spots.map((spot) => (
                   <tr key={spot.id}>
-                    <td>{spot.spotNumber}</td>
-                    <td>{spot.type === "ev" ? "EV" : spot.type}</td>
-                    <td>{spot.size}</td>
-                    <td>{spot.status}</td>
+                    <td>
+                      <b>{spot.spotNumber}</b>
+                    </td>
+                    <td>
+                      {spot.type === "ev" ? (
+                        <span className="ev">
+                          <Icon name="bolt" />
+                          EV
+                        </span>
+                      ) : (
+                        capitalize(spot.type)
+                      )}
+                    </td>
+                    <td>{capitalize(spot.size)}</td>
+                    <td>
+                      <span className={`pill ${STATUS_PILL[spot.status].tone}`}>
+                        {STATUS_PILL[spot.status].label}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
