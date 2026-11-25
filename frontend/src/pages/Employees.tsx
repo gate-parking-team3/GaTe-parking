@@ -179,204 +179,139 @@ export default function Employees() {
   function renderStatusBadge(status: User["status"]) {
     switch (status) {
       case "pending":
-        return (
-          <span className="status-badge status-badge--pending">
-            Awaiting activation
-          </span>
-        );
+        return <span className="pill amber">Awaiting activation</span>;
       case "active":
-        return (
-          <span className="status-badge status-badge--active">Active</span>
-        );
+        return <span className="pill green">Active</span>;
       case "disabled":
-        return (
-          <span className="status-badge status-badge--disabled">Disabled</span>
-        );
+        return <span className="pill gray">Disabled</span>;
     }
   }
 
   return (
-    <div className="employees-page">
-      <h1 className="page-heading">Employee Management</h1>
-      <p className="page-description">
-        Register new employees and view registered staff.
-      </p>
+    <div className="page employees-page">
+      <div className="head">
+        <div>
+          <h1>Employee Management</h1>
+          <p>Register new employees and view registered staff.</p>
+        </div>
+      </div>
 
       {/* Registration / Invitation Form */}
-      <section
-        aria-labelledby="register-heading"
-        style={{ marginTop: "2rem", marginBottom: "2.5rem" }}
-      >
-        <h2
-          id="register-heading"
-          style={{ fontSize: "1.25rem", marginBottom: "1rem" }}
-        >
+      <section className="form" aria-labelledby="register-heading">
+        <h2 id="register-heading" className="section-title">
           Register Employee
         </h2>
 
         {invitationSuccess && (
-          <div
-            className="login-form__success"
-            role="status"
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "0.375rem",
-              background: "#d1e7dd",
-              color: "#0f5132",
-              marginBottom: "1rem",
-            }}
-          >
+          <div className="ok-note" role="status">
             {invitationSuccess}
           </div>
         )}
 
         {formError && (
-          <div
-            className="login-form__error"
-            role="alert"
-            style={{ marginBottom: "1rem" }}
-          >
+          <div className="err" role="alert">
             {formError}
           </div>
         )}
 
-        <form
-          className="login-form"
-          onSubmit={handleRegister}
-          noValidate
-          style={{ maxWidth: "32rem" }}
-        >
-          <div className="login-form__field">
-            <label htmlFor="employee-name" className="login-form__label">
-              Full Name
-            </label>
-            <input
-              id="employee-name"
-              className="login-form__input"
-              type="text"
-              required
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (fieldErrors.name) {
-                  setFieldErrors((prev) => ({ ...prev, name: undefined }));
-                }
-              }}
-            />
-            {fieldErrors.name && (
-              <span
-                role="alert"
-                style={{ fontSize: "0.8125rem", color: "#842029" }}
-              >
-                {fieldErrors.name}
-              </span>
-            )}
+        <form className="form" onSubmit={handleRegister} noValidate>
+          <div className="row">
+            <div className="field">
+              <label htmlFor="employee-name">Full Name</label>
+              <input
+                id="employee-name"
+                className="input"
+                type="text"
+                required
+                aria-invalid={fieldErrors.name ? true : undefined}
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (fieldErrors.name) {
+                    setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }
+                }}
+              />
+              {fieldErrors.name && (
+                <span role="alert" className="field-err">
+                  {fieldErrors.name}
+                </span>
+              )}
+            </div>
+
+            <div className="field">
+              <label htmlFor="employee-email">Email Address</label>
+              <input
+                id="employee-email"
+                className="input"
+                type="email"
+                required
+                aria-invalid={fieldErrors.email ? true : undefined}
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                }}
+              />
+              {fieldErrors.email && (
+                <span role="alert" className="field-err">
+                  {fieldErrors.email}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="login-form__field">
-            <label htmlFor="employee-email" className="login-form__label">
-              Email Address
-            </label>
-            <input
-              id="employee-email"
-              className="login-form__input"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (fieldErrors.email) {
-                  setFieldErrors((prev) => ({ ...prev, email: undefined }));
-                }
-              }}
-            />
-            {fieldErrors.email && (
-              <span
-                role="alert"
-                style={{ fontSize: "0.8125rem", color: "#842029" }}
-              >
-                {fieldErrors.email}
-              </span>
-            )}
+          <div>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Registering…" : "Register Employee"}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            className="login-form__submit"
-            disabled={isSubmitting}
-            style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
-          >
-            {isSubmitting ? "Registering…" : "Register Employee"}
-          </button>
         </form>
 
         {/* Development-only invitation retrieval helper */}
         {import.meta.env.DEV && registeredEmail && invitationSuccess && (
-          <div className="dev-helper" data-testid="dev-invitation-helper">
-            <h3 className="dev-helper__title">
-              Development Helper (Testing Only)
-            </h3>
-            <p
-              style={{
-                fontSize: "0.875rem",
-                color: "var(--color-text-muted)",
-                marginBottom: "0.75rem",
-              }}
-            >
+          <div className="note form" data-testid="dev-invitation-helper">
+            <h3 className="item-t">Development Helper (Testing Only)</h3>
+            <p className="small">
               Fetch the activation URL from the server test mailbox for{" "}
               <strong>{registeredEmail}</strong>.
             </p>
-            <button
-              type="button"
-              className="session-error__retry"
-              onClick={handleGetDevLink}
-              disabled={isFetchingDevLink}
-            >
-              {isFetchingDevLink
-                ? "Retrieving link…"
-                : "Get development activation link"}
-            </button>
+            <div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={handleGetDevLink}
+                disabled={isFetchingDevLink}
+              >
+                {isFetchingDevLink
+                  ? "Retrieving link…"
+                  : "Get development activation link"}
+              </button>
+            </div>
 
             {devLinkError && (
-              <p
-                role="alert"
-                style={{
-                  fontSize: "0.875rem",
-                  color: "#842029",
-                  marginTop: "0.5rem",
-                }}
-              >
+              <p role="alert" className="field-err">
                 {devLinkError}
               </p>
             )}
 
             {devInvitation && (
-              <div
-                style={{
-                  marginTop: "0.75rem",
-                  padding: "0.75rem",
-                  background: "#ffffff",
-                  borderRadius: "0.25rem",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                <p style={{ fontSize: "0.875rem", marginBottom: "0.5rem" }}>
+              <div className="form">
+                <p className="small">
                   <strong>Activation URL:</strong>
                 </p>
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    wordBreak: "break-all",
-                    marginBottom: "0.5rem",
-                  }}
-                >
+                <p className="small">
                   {isSafeUrl(devInvitation.activationUrl) ? (
                     <a
                       href={devInvitation.activationUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="not-found__link"
-                      style={{ marginTop: 0 }}
                     >
                       {devInvitation.activationUrl}
                     </a>
@@ -384,31 +319,20 @@ export default function Employees() {
                     <code>{devInvitation.activationUrl}</code>
                   )}
                 </p>
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "var(--color-text-muted)",
-                    marginBottom: "0.5rem",
-                  }}
-                >
+                <p className="small muted">
                   Expires: {new Date(devInvitation.expiresAt).toLocaleString()}
                 </p>
-                <button
-                  type="button"
-                  className="session-error__retry"
-                  onClick={handleCopyLink}
-                >
-                  Copy link
-                </button>
-                {copyFeedback && (
-                  <p
-                    role="status"
-                    style={{
-                      fontSize: "0.8125rem",
-                      color: "#0f5132",
-                      marginTop: "0.5rem",
-                    }}
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={handleCopyLink}
                   >
+                    Copy link
+                  </button>
+                </div>
+                {copyFeedback && (
+                  <p role="status" className="small">
                     {copyFeedback}
                   </p>
                 )}
@@ -420,58 +344,52 @@ export default function Employees() {
 
       {/* Employee List Table */}
       <section aria-labelledby="employees-list-heading">
-        <h2 id="employees-list-heading" style={{ fontSize: "1.25rem" }}>
+        <h2 id="employees-list-heading" className="section-title">
           Employees
         </h2>
 
         {isLoadingList ? (
-          <p
-            role="status"
-            className="page-description"
-            style={{ marginTop: "1rem" }}
-          >
+          <p role="status" className="muted">
             Loading employees…
           </p>
         ) : listError ? (
-          <div
-            className="session-error"
-            role="alert"
-            style={{ marginTop: "1rem" }}
-          >
-            <p className="session-error__message">{listError}</p>
+          <div className="err" role="alert">
+            <p>{listError}</p>
             <button
               type="button"
-              className="session-error__retry"
+              className="btn btn-sm"
               onClick={handleRetryList}
             >
               Retry
             </button>
           </div>
         ) : employees.length === 0 ? (
-          <p className="page-description" style={{ marginTop: "1rem" }}>
-            No employees registered yet.
-          </p>
+          <div className="empty">
+            <h3>No employees registered yet.</h3>
+          </div>
         ) : (
-          <table className="employee-table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
-                  <td>{emp.name}</td>
-                  <td>{emp.email}</td>
-                  <td>{emp.role === "admin" ? "Administrator" : "User"}</td>
-                  <td>{renderStatusBadge(emp.status)}</td>
+          <div className="tbl-wrap card">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>{emp.name}</td>
+                    <td>{emp.email}</td>
+                    <td>{emp.role === "admin" ? "Administrator" : "User"}</td>
+                    <td>{renderStatusBadge(emp.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

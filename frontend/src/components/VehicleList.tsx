@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { vehicleApi } from "../api/vehicleApi";
-import type { EngineType, Vehicle, VehicleSize } from "../types/vehicle";
+import type { Vehicle, VehicleSize } from "../types/vehicle";
 import Icon from "./Icon";
 import Plate from "./Plate";
 import VehicleEditForm from "./VehicleEditForm";
-
-const engineLabels: Record<EngineType, string> = {
-  combustion: "Combustion",
-  electric: "Electric",
-};
 
 const sizeLabels: Record<VehicleSize, string> = {
   small: "Small",
@@ -91,32 +86,43 @@ export default function VehicleList({
       ) : (
         <div className="card">
           {vehicles.map((vehicle) => (
-            <div key={vehicle.id} className="item">
+            <div
+              key={vehicle.id}
+              className="item click"
+              role="button"
+              tabIndex={0}
+              aria-label={`Edit ${vehicle.licensePlate}`}
+              onClick={() => setEditing(vehicle)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setEditing(vehicle);
+                }
+              }}
+            >
               <Plate plate={vehicle.licensePlate} />
               <div className="grow">
                 <div className="item-t">
                   {vehicle.brand} {vehicle.model}
-                  {vehicle.engineType === "electric" && (
-                    <span className="ev">
-                      <Icon name="bolt" />
-                      EV
-                    </span>
-                  )}
                 </div>
                 <div className="item-s">
-                  <span>{engineLabels[vehicle.engineType]}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{sizeLabels[vehicle.size]}</span>
+                  {vehicle.engineType === "electric" ? (
+                    <>
+                      <span className="ev">
+                        <Icon name="bolt" />
+                        Electric
+                      </span>
+                      · can use EV spots
+                    </>
+                  ) : (
+                    "Petrol / diesel"
+                  )}{" "}
+                  · {sizeLabels[vehicle.size].toLowerCase()} size
                 </div>
               </div>
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={() => setEditing(vehicle)}
-                aria-label={`Edit ${vehicle.licensePlate}`}
-              >
-                Edit
-              </button>
+              <span className="faint" aria-hidden="true">
+                <Icon name="chev" small />
+              </span>
             </div>
           ))}
         </div>

@@ -83,16 +83,25 @@ export default function Login() {
   }
 
   return (
-    <>
-      <h1 className="page-heading">Sign In</h1>
-      <form className="login-form" onSubmit={handleSubmit} noValidate>
-        <div className="login-form__field">
-          <label htmlFor="login-email" className="login-form__label">
-            Email
-          </label>
+    <div className="auth">
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">
+          P
+        </span>
+        GaŤe Parking
+      </div>
+      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+        <h1>Sign in</h1>
+        {error && (
+          <div className="err" role="alert">
+            {error}
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="login-email">Work email</label>
           <input
             id="login-email"
-            className="login-form__input"
+            className="input"
             type="email"
             autoComplete="email"
             required
@@ -103,13 +112,11 @@ export default function Login() {
             }}
           />
         </div>
-        <div className="login-form__field">
-          <label htmlFor="login-password" className="login-form__label">
-            Password
-          </label>
+        <div className="field">
+          <label htmlFor="login-password">Password</label>
           <input
             id="login-password"
-            className="login-form__input"
+            className="input"
             type="password"
             autoComplete="current-password"
             required
@@ -120,19 +127,18 @@ export default function Login() {
             }}
           />
         </div>
-        {error && (
-          <p className="login-form__error" role="alert">
-            {error}
-          </p>
-        )}
         <button
           type="submit"
-          className="login-form__submit"
-          disabled={isLoggingIn || !email.trim() || !password}
+          className="btn btn-primary btn-lg btn-block"
+          disabled={isLoggingIn}
         >
           {isLoggingIn ? "Signing in…" : "Sign in"}
         </button>
+        <p className="faint small auth-foot">
+          No account yet? An administrator invites new employees. Open the
+          invitation link from your email to activate your account.
+        </p>
       </form>
-    </>
+    </div>
   );
 }

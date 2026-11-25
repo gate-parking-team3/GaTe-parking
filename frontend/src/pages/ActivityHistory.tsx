@@ -80,7 +80,7 @@ export default function ActivityHistory() {
           </div>
         </section>
       ) : (
-        <div className="tbl-wrap">
+        <div className="tbl-wrap card">
           <table className="tbl">
             <thead>
               <tr>

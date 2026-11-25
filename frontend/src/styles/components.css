@@ -34,6 +34,12 @@ h3 {
 p {
   margin: 0;
 }
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 a {
   color: var(--blue);
 }
@@ -239,7 +245,11 @@ td {
   padding: var(--space-8) var(--gutter) var(--space-16);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--page-gap);
+}
+/* A section title sits close to the list it introduces, as in the reference. */
+.page > .section-title {
+  margin-bottom: calc(var(--space-2) - var(--page-gap));
 }
 .head {
   display: flex;
@@ -1001,11 +1011,11 @@ td {
 @media (min-width: 721px) {
   :root {
     --topbar-h: 68px;
+    --page-gap: var(--space-12);
   }
   .page {
     padding-top: var(--space-16);
     padding-bottom: 120px;
-    gap: var(--space-12);
   }
   .head h1 {
     font-size: var(--text-3xl);
@@ -1021,4 +1031,63 @@ td {
     text-transform: uppercase;
     color: var(--ink-3);
   }
+}
+
+/* ---------- Shell additions (account menu, admin sub-navigation) ---------- */
+.me-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control);
+  padding: 0 6px 0 var(--space-1);
+  border: 0;
+  background: none;
+  border-radius: var(--space-5);
+  cursor: pointer;
+}
+.me-btn:hover {
+  background: var(--surface);
+}
+.menu-head {
+  padding: 10px 10px var(--space-3);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+.subnav {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) 0;
+}
+.seg a {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+.seg a.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.auth .brand {
+  margin-bottom: var(--space-1);
+}
+.auth-foot {
+  text-align: center;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex: none;
+}
+.item-t.is-read {
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
 }

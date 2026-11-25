@@ -46,7 +46,7 @@ describe("VehicleList", () => {
     expect(await screen.findByText("2EV 0001")).toBeInTheDocument();
     expect(screen.getByText("Škoda Octavia")).toBeInTheDocument();
     expect(screen.getByText("Electric")).toBeInTheDocument();
-    expect(screen.getByText("Large")).toBeInTheDocument();
+    expect(screen.getByText(/large size/)).toBeInTheDocument();
   });
 
   it("says so when there are no vehicles", async () => {
@@ -98,8 +98,9 @@ describe("VehicleList", () => {
     vi.spyOn(vehicleApi, "list").mockResolvedValue([octavia, enyaq]);
     render(<VehicleList />);
 
-    expect(await screen.findByText("EV")).toBeInTheDocument();
-    expect(screen.getAllByText("EV")).toHaveLength(1);
+    expect(await screen.findByText("Electric")).toBeInTheDocument();
+    expect(screen.getAllByText("Electric")).toHaveLength(1);
+    expect(screen.getByText(/can use EV spots/)).toBeInTheDocument();
   });
 
   it("goes back to the list when editing is cancelled", async () => {

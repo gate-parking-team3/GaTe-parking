@@ -1,71 +1,186 @@
-import { NavLink, Outlet } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
+import Icon, { type IconName } from "../components/Icon";
 import { useAuth } from "../context/AuthContext";
+
+type Tab = { to: string; label: string; icon: IconName; end?: boolean };
+
+const adminLinks = [
+  { to: "/admin/employees", label: "Employees" },
+  { to: "/admin/spots", label: "Spots" },
+  { to: "/admin/activity-history", label: "Activity History" },
+];
+
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function Brand({ to }: { to: string }) {
+  return (
+    <Link className="brand" to={to}>
+      <span className="brand-mark" aria-hidden="true">
+        P
+      </span>
+      GaŤe Parking
+    </Link>
+  );
+}
 
 export default function RootLayout() {
   const { user, logout } = useAuth();
+  const { pathname } = useLocation();
+  // The menu belongs to the page it was opened on, so navigating closes it.
+  const [menuAt, setMenuAt] = useState<string | null>(null);
+  const menuOpen = menuAt === pathname;
+  const setMenuOpen = (open: boolean) => setMenuAt(open ? pathname : null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const navItems = [
-    { to: "/", label: "Parking" },
-    { to: "/book", label: "Book" },
-    { to: "/reservations", label: "Reservations" },
-    { to: "/vehicles", label: "Vehicles" },
-    { to: "/history", label: "History" },
-    { to: "/notifications", label: "Notifications" },
-    ...(user?.role === "admin"
+  // Close the account menu on Escape and on outside click.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuAt(null);
+    };
+    const onClick = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuAt(null);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [menuOpen]);
+
+  // Sign-in and activation are full-screen cards with their own brand.
+  const isAuthScreen = pathname === "/login" || pathname === "/activate";
+  const isAdmin = user?.role === "admin";
+  const inAdmin = pathname.startsWith("/admin");
+
+  const tabs: Tab[] = [
+    { to: "/", label: "Home", icon: "home", end: true },
+    { to: "/book", label: "Book", icon: "plus" },
+    { to: "/reservations", label: "My bookings", icon: "cal" },
+    { to: "/vehicles", label: "Vehicles", icon: "car" },
+    ...(isAdmin
       ? [
-          { to: "/admin/employees", label: "Employees" },
-          { to: "/admin/spots", label: "Spots" },
-          { to: "/admin/activity-history", label: "Activity History" },
+          {
+            to: "/admin/employees",
+            label: "Admin",
+            icon: "shield" as IconName,
+          },
         ]
       : []),
   ];
+  // The Admin tab stays highlighted on every /admin/* page.
+  const isTabOn = (tab: Tab, isActive: boolean) =>
+    tab.label === "Admin" ? inAdmin : isActive;
 
   return (
     <>
-      <header className="site-header">
-        <span className="site-header__title">GaŤe Parking</span>
-        {user && (
-          <nav aria-label="Main" className="main-nav">
-            <ul className="main-nav__list">
-              {navItems.map(({ to, label }) => (
-                <li key={to}>
+      {!isAuthScreen && (
+        <header className="top">
+          <div className="top-in">
+            <Brand to="/" />
+            {user ? (
+              <>
+                <nav className="tabs" aria-label="Main">
+                  {tabs.map((tab) => (
+                    <NavLink
+                      key={tab.to}
+                      to={tab.to}
+                      end={tab.end}
+                      className={({ isActive }) =>
+                        isTabOn(tab, isActive) ? "on" : ""
+                      }
+                    >
+                      {tab.label}
+                    </NavLink>
+                  ))}
+                </nav>
+                <div className="top-right" ref={menuRef}>
                   <NavLink
-                    to={to}
-                    end={to === "/"}
-                    className={({ isActive }) =>
-                      "main-nav__link" +
-                      (isActive ? " main-nav__link--active" : "")
-                    }
+                    to="/notifications"
+                    className={({ isActive }) => `bell ${isActive ? "on" : ""}`}
+                    aria-label="Notifications"
                   >
-                    {label}
+                    <Icon name="bell" />
                   </NavLink>
-                </li>
-              ))}
-            </ul>
+                  <button
+                    type="button"
+                    className="me-btn"
+                    aria-label="Account"
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setMenuOpen(!menuOpen)}
+                  >
+                    <span className="avatar">{initials(user.name)}</span>
+                  </button>
+                  {menuOpen && (
+                    <div className="menu" role="menu">
+                      <div className="menu-head">
+                        <b>{user.name}</b>
+                        <div className="faint small">{user.email}</div>
+                      </div>
+                      <Link to="/history" role="menuitem">
+                        <Icon name="cal" small />
+                        History
+                      </Link>
+                      <button type="button" role="menuitem" onClick={logout}>
+                        <Icon name="out" small />
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="top-right">
+                <Link className="btn btn-ghost btn-sm" to="/login">
+                  Sign in
+                </Link>
+              </div>
+            )}
+          </div>
+        </header>
+      )}
+      {user && isAdmin && inAdmin && (
+        <div className="subnav">
+          <nav className="seg" aria-label="Admin">
+            {adminLinks.map(({ to, label }) => (
+              <NavLink key={to} to={to}>
+                {label}
+              </NavLink>
+            ))}
           </nav>
-        )}
-        <div className="site-header__user">
-          {user ? (
-            <>
-              <span className="site-header__name">{user.name}</span>
-              <button
-                type="button"
-                className="site-header__logout"
-                onClick={logout}
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <NavLink to="/login" className="main-nav__link">
-              Sign in
-            </NavLink>
-          )}
         </div>
-      </header>
-      <main className="main-content">
+      )}
+      <main>
         <Outlet />
       </main>
+      {user && !isAuthScreen && (
+        <nav className="bottom-tabs" aria-label="Main, mobile">
+          {tabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              className={({ isActive }) => (isTabOn(tab, isActive) ? "on" : "")}
+            >
+              <Icon name={tab.icon} />
+              <span>{tab.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </>
   );
 }

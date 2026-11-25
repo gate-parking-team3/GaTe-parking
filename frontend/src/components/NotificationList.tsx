@@ -113,7 +113,8 @@ export default function NotificationList() {
           return (
             <li key={item.id} className="item">
               <div className="grow">
-                <div className="item-t">
+                <div className={isUnread ? "item-t" : "item-t is-read"}>
+                  {isUnread && <span className="dot" aria-hidden="true" />}
                   <h3>{item.title}</h3>
                 </div>
                 <div className="item-s">

@@ -38,7 +38,7 @@ describe("Anonymous user experience", () => {
   });
 
   it("renders the site name and a Sign in link in the header", () => {
-    renderApp("/login");
+    renderApp("/unknown");
     const header = screen.getByRole("banner");
     expect(within(header).getByText("GaŤe Parking")).toBeInTheDocument();
     expect(
@@ -47,7 +47,7 @@ describe("Anonymous user experience", () => {
   });
 
   it("does not render the main navigation when not signed in", () => {
-    renderApp("/login");
+    renderApp("/unknown");
     expect(
       screen.queryByRole("navigation", { name: "Main" }),
     ).not.toBeInTheDocument();
@@ -56,56 +56,56 @@ describe("Anonymous user experience", () => {
   it("redirects anonymous visitor from / to /login", async () => {
     renderApp("/");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /reservations to /login", async () => {
     renderApp("/reservations");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /vehicles to /login", async () => {
     renderApp("/vehicles");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /history to /login", async () => {
     renderApp("/history");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /notifications to /login", async () => {
     renderApp("/notifications");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /admin/employees to /login", async () => {
     renderApp("/admin/employees");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /admin/spots to /login", async () => {
     renderApp("/admin/spots");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
   it("redirects anonymous visitor from /admin/activity-history to /login", async () => {
     renderApp("/admin/activity-history");
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
@@ -129,7 +129,7 @@ describe("Anonymous user experience", () => {
     renderApp("/reservations");
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem("gate-parking-token")).toBeNull();
   });
@@ -152,7 +152,7 @@ describe("Anonymous user experience", () => {
     renderApp("/unknown");
     await user.click(screen.getByRole("link", { name: "Go to the home page" }));
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 });
@@ -180,18 +180,20 @@ describe("Authenticated user experience", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the user name and a Sign out button in the header", async () => {
+  it("shows the user name and a Sign out button in the account menu", async () => {
+    const user = userEvent.setup();
     renderApp("/");
-    expect(await screen.findByText("Petr Svoboda")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Account" }));
+    expect(screen.getByText("Petr Svoboda")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Sign out" }),
+      screen.getByRole("menuitem", { name: "Sign out" }),
     ).toBeInTheDocument();
   });
 
   it("renders the main navigation with all links", async () => {
     renderApp("/");
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    expect(within(nav).getByRole("link", { name: "Parking" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute(
       "href",
       "/",
     );
@@ -200,27 +202,18 @@ describe("Authenticated user experience", () => {
       "/book",
     );
     expect(
-      within(nav).getByRole("link", { name: "Reservations" }),
+      within(nav).getByRole("link", { name: "My bookings" }),
     ).toHaveAttribute("href", "/reservations");
     expect(within(nav).getByRole("link", { name: "Vehicles" })).toHaveAttribute(
       "href",
       "/vehicles",
     );
-    expect(within(nav).getByRole("link", { name: "History" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute(
       "href",
-      "/history",
+      "/notifications",
     );
     expect(
-      within(nav).getByRole("link", { name: "Notifications" }),
-    ).toHaveAttribute("href", "/notifications");
-    expect(
-      within(nav).queryByRole("link", { name: "Employees" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(nav).queryByRole("link", { name: "Spots" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(nav).queryByRole("link", { name: "Activity History" }),
+      within(nav).queryByRole("link", { name: "Admin" }),
     ).not.toBeInTheDocument();
   });
 
@@ -260,7 +253,7 @@ describe("Authenticated user experience", () => {
 
     renderApp("/admin/employees");
 
-    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const nav = await screen.findByRole("navigation", { name: "Admin" });
     expect(
       within(nav).getByRole("link", { name: "Employees" }),
     ).toHaveAttribute("href", "/admin/employees");
@@ -271,6 +264,12 @@ describe("Authenticated user experience", () => {
     expect(
       within(nav).getByRole("link", { name: "Activity History" }),
     ).toHaveAttribute("href", "/admin/activity-history");
+    expect(
+      within(screen.getByRole("navigation", { name: "Main" })).getByRole(
+        "link",
+        { name: "Admin" },
+      ),
+    ).toHaveAttribute("href", "/admin/employees");
     expect(
       await screen.findByRole("heading", {
         level: 1,
@@ -306,7 +305,7 @@ describe("Authenticated user experience", () => {
     const user = userEvent.setup();
     renderApp("/");
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    await user.click(within(nav).getByRole("link", { name: "Reservations" }));
+    await user.click(within(nav).getByRole("link", { name: "My bookings" }));
     expect(
       await screen.findByRole("heading", {
         level: 1,
@@ -342,15 +341,17 @@ describe("Authenticated user experience", () => {
 
   it("marks active navigation states", async () => {
     const { unmount } = renderApp("/");
-    const parkingLink = await screen.findByRole("link", { name: "Parking" });
-    expect(parkingLink).toHaveClass("main-nav__link--active");
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveClass("on");
     unmount();
 
     renderApp("/reservations");
-    const resLink = await screen.findByRole("link", { name: "Reservations" });
-    expect(resLink).toHaveClass("main-nav__link--active");
-    expect(screen.getByRole("link", { name: "Parking" })).not.toHaveClass(
-      "main-nav__link--active",
+    const nav2 = await screen.findByRole("navigation", { name: "Main" });
+    expect(within(nav2).getByRole("link", { name: "My bookings" })).toHaveClass(
+      "on",
+    );
+    expect(within(nav2).getByRole("link", { name: "Home" })).not.toHaveClass(
+      "on",
     );
   });
 
@@ -358,18 +359,17 @@ describe("Authenticated user experience", () => {
     const user = userEvent.setup();
     renderApp("/");
 
-    const logoutBtn = await screen.findByRole("button", { name: "Sign out" });
-    await user.click(logoutBtn);
+    await user.click(await screen.findByRole("button", { name: "Account" }));
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
 
-    // Nav is gone, sign-in link is shown
+    // Nav is gone
     expect(
       screen.queryByRole("navigation", { name: "Main" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
 
     // Trying to visit /reservations redirects to /login
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
   });
 
@@ -417,11 +417,11 @@ describe("Full login and redirect integration", () => {
 
     // Land on login page
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+      await screen.findByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
 
     // Fill form and submit
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -432,6 +432,6 @@ describe("Full login and redirect integration", () => {
         name: "My bookings",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Petr Svoboda")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Account" })).toBeInTheDocument();
   });
 });

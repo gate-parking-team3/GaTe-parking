@@ -95,10 +95,10 @@ describe("Login page", () => {
     renderLogin();
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Sign In" }),
+      screen.getByRole("heading", { level: 1, name: "Sign in" }),
     ).toBeInTheDocument();
 
-    const emailInput = screen.getByLabelText("Email");
+    const emailInput = screen.getByLabelText("Work email");
     expect(emailInput).toHaveAttribute("type", "email");
     expect(emailInput).toHaveAttribute("autocomplete", "email");
     expect(emailInput).toBeRequired();
@@ -109,29 +109,20 @@ describe("Login page", () => {
     expect(passwordInput).toBeRequired();
 
     const submitBtn = screen.getByRole("button", { name: "Sign in" });
-    // Button should be disabled when fields are empty
-    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).toBeEnabled();
   });
 
-  it("enables the submit button only when both fields have content", async () => {
+  it("asks for both fields when the form is submitted empty", async () => {
     const user = userEvent.setup();
+    const loginSpy = vi.spyOn(authApi, "login");
     renderLogin();
 
-    const emailInput = screen.getByLabelText("Email");
-    const passwordInput = screen.getByLabelText("Password");
-    const submitBtn = screen.getByRole("button", { name: "Sign in" });
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(submitBtn).toBeDisabled();
-
-    await user.type(emailInput, "petr@gate.cz");
-    expect(submitBtn).toBeDisabled();
-
-    await user.type(passwordInput, "secret123");
-    expect(submitBtn).toBeEnabled();
-
-    // Clearing email disables it again
-    await user.clear(emailInput);
-    expect(submitBtn).toBeDisabled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Email and password are required",
+    );
+    expect(loginSpy).not.toHaveBeenCalled();
   });
 
   it("prevents duplicate submissions and shows loading state while submission is in flight", async () => {
@@ -146,7 +137,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
 
     const submitBtn = screen.getByRole("button", { name: "Sign in" });
@@ -186,7 +177,7 @@ describe("Login page", () => {
     renderLogin();
 
     // Enter email with leading/trailing whitespace and password with spaces
-    await user.type(screen.getByLabelText("Email"), "  petr@gate.cz  ");
+    await user.type(screen.getByLabelText("Work email"), "  petr@gate.cz  ");
     await user.type(screen.getByLabelText("Password"), "  secret space 123  ");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -207,7 +198,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -237,7 +228,7 @@ describe("Login page", () => {
       },
     ]);
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -260,7 +251,7 @@ describe("Login page", () => {
       },
     ]);
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -277,7 +268,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "wrongpass");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -293,7 +284,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "new@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "new@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -309,7 +300,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "gone@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "gone@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -325,7 +316,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -343,7 +334,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -361,7 +352,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -377,7 +368,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    const emailInput = screen.getByLabelText("Email");
+    const emailInput = screen.getByLabelText("Work email");
     const passwordInput = screen.getByLabelText("Password");
 
     await user.type(emailInput, "petr@gate.cz");
@@ -397,7 +388,7 @@ describe("Login page", () => {
 
     renderLogin();
 
-    await user.type(screen.getByLabelText("Email"), "petr@gate.cz");
+    await user.type(screen.getByLabelText("Work email"), "petr@gate.cz");
     await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
