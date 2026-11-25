@@ -10,7 +10,7 @@
     "frontend": {
       "root": "frontend",
       "framework": "vite",
-      "buildCommand": "npm run build && cp dist/index.html dist/404.html"
+      "buildCommand": "npm run build && mkdir -p dist/reservations && cp dist/index.html dist/reservations/index.html"
     }
   },
   "rewrites": [
@@ -21,31 +21,8 @@
       }
     },
     {
-      "source": "/reservations",
-      "destination": {
-        "service": "frontend",
-        "path": "/"
-      }
-    },
-    {
       "source": "/vehicles",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
-      }
-    },
-    {
-      "source": "/book",
-      "destination": {
-        "service": "frontend"
-      }
-    },
-    {
-      "source": "/((?!assets/)[^.]*)",
-      "destination": {
-        "service": "frontend",
-        "path": "/"
-      }
+      "destination": "/index.html"
     },
     {
       "source": "/(.*)",
