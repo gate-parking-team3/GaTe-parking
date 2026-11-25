@@ -10,18 +10,7 @@
     "frontend": {
       "root": "frontend",
       "framework": "vite",
-      "routes": [
-        {
-          "src": "/((?!assets/)[^.]*)",
-          "transforms": [
-            {
-              "type": "request.path",
-              "op": "set",
-              "args": "/index.html"
-            }
-          ]
-        }
-      ]
+      "buildCommand": "npm run build && cp dist/index.html dist/404.html"
     }
   },
   "rewrites": [
