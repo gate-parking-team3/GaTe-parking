@@ -117,7 +117,6 @@ export default function ParkingAvailability() {
                 type="button"
                 className="btn btn-sm"
                 onClick={retryDetail}
-                style={{ marginTop: "var(--space-2)" }}
               >
                 Try again
               </button>
@@ -158,7 +157,7 @@ export default function ParkingAvailability() {
             </div>
 
             {/* Filter by spot status */}
-            <div className="row" style={{ alignItems: "center" }}>
+            <div className="row">
               <span className="eyebrow">Filter spots</span>
               <div
                 className="seg"
@@ -240,12 +239,7 @@ export default function ParkingAvailability() {
         <section className="card">
           <div role="alert" className="err">
             <p>{error}</p>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={retry}
-              style={{ marginTop: "var(--space-2)" }}
-            >
+            <button type="button" className="btn btn-sm" onClick={retry}>
               Try again
             </button>
           </div>
