@@ -17,6 +17,7 @@ export default function NotificationList() {
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [markingReadId, setMarkingReadId] = useState<string | null>(null);
+  const [markError, setMarkError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function NotificationList() {
 
   async function handleMarkRead(id: string) {
     setMarkingReadId(id);
+    setMarkError(null);
     try {
       await notificationApi.markRead(id);
       setNotifications((current) =>
@@ -55,8 +57,10 @@ export default function NotificationList() {
             )
           : null,
       );
-    } catch {
-      // Ignore or log error
+    } catch (err) {
+      setMarkError(
+        err instanceof Error ? err.message : "Could not mark as read.",
+      );
     } finally {
       setMarkingReadId(null);
     }
@@ -70,9 +74,9 @@ export default function NotificationList() {
 
   if (error) {
     return (
-      <div role="alert">
+      <div role="alert" className="err">
         <p>{error}</p>
-        <button type="button" onClick={handleRetry}>
+        <button type="button" className="btn btn-sm" onClick={handleRetry}>
           Try again
         </button>
       </div>
@@ -80,66 +84,73 @@ export default function NotificationList() {
   }
 
   if (notifications === null) {
-    return <p>Loading notifications…</p>;
+    return <p className="muted">Loading notifications…</p>;
   }
 
   if (notifications.length === 0) {
-    return <p>You have no notifications.</p>;
+    return (
+      <section className="card">
+        <div className="empty">
+          <p>You have no notifications.</p>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <ul className="notification-list" aria-label="Notifications list">
-      {notifications.map((item) => {
-        const isUnread = !item.readAt;
-        const badge = TYPE_BADGES[item.type] ?? item.type;
-        const formattedDate = new Date(item.createdAt).toLocaleString();
+    <>
+      {markError && (
+        <div role="alert" className="err">
+          {markError}
+        </div>
+      )}
+      <ul className="card" aria-label="Notifications list">
+        {notifications.map((item) => {
+          const isUnread = !item.readAt;
+          const badge = TYPE_BADGES[item.type] ?? item.type;
+          const formattedDate = new Date(item.createdAt).toLocaleString();
 
-        return (
-          <li
-            key={item.id}
-            className={`notification-item ${isUnread ? "notification-item--unread" : "notification-item--read"}`}
-          >
-            <div className="notification-item__header">
-              <span className="notification-item__badge">{badge}</span>
-              <time
-                dateTime={item.createdAt}
-                className="notification-item__date"
-              >
-                {formattedDate}
-              </time>
-              {isUnread && (
-                <span className="notification-item__status">Unread</span>
-              )}
-            </div>
-
-            <h3 className="notification-item__title">{item.title}</h3>
-            <p className="notification-item__message">{item.message}</p>
-
-            <div className="notification-item__actions">
-              <Link
-                to={item.reservationUrl}
-                className="notification-item__link"
-                onClick={() => {
-                  if (isUnread) handleMarkRead(item.id);
-                }}
-              >
-                View reservation
-              </Link>
-              {isUnread && (
-                <button
-                  type="button"
-                  className="notification-item__btn-read"
-                  disabled={markingReadId === item.id}
-                  onClick={() => handleMarkRead(item.id)}
-                  aria-label={`Mark "${item.title}" as read`}
+          return (
+            <li key={item.id} className="item">
+              <div className="grow">
+                <div className="item-t">
+                  <h3>{item.title}</h3>
+                </div>
+                <div className="item-s">
+                  <span className="pill gray">{badge}</span>
+                  <time dateTime={item.createdAt} className="tabular">
+                    {formattedDate}
+                  </time>
+                  {isUnread && <span className="pill blue">Unread</span>}
+                </div>
+                <p>{item.message}</p>
+              </div>
+              <div className="acts">
+                <Link
+                  to={item.reservationUrl}
+                  className="btn btn-sm"
+                  onClick={() => {
+                    if (isUnread) handleMarkRead(item.id);
+                  }}
                 >
-                  {markingReadId === item.id ? "Marking…" : "Mark as read"}
-                </button>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+                  View reservation
+                </Link>
+                {isUnread && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={markingReadId === item.id}
+                    onClick={() => handleMarkRead(item.id)}
+                    aria-label={`Mark "${item.title}" as read`}
+                  >
+                    {markingReadId === item.id ? "Marking…" : "Mark as read"}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

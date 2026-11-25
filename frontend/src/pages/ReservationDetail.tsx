@@ -48,69 +48,75 @@ export default function ReservationDetail() {
   }, [id]);
 
   if (loading) {
-    return <p>Loading reservation…</p>;
+    return <p className="muted">Loading reservation…</p>;
   }
+
+  const back = (
+    <Link to="/notifications" className="btn btn-ghost">
+      ← Back to Notifications
+    </Link>
+  );
 
   if (notFound) {
     return (
-      <section aria-label="Reservation Details">
-        <h1 className="page-heading">Reservation Details</h1>
-        <div role="alert">
+      <div className="page" aria-label="Reservation Details">
+        <div className="head">
+          <div>
+            <h1>Reservation Details</h1>
+          </div>
+        </div>
+        <div role="alert" className="err">
           <p>Reservation not found or has been deleted.</p>
         </div>
-        <Link to="/notifications" className="back-link">
-          ← Back to Notifications
-        </Link>
-      </section>
+        <div>{back}</div>
+      </div>
     );
   }
 
   if (error || !reservation) {
     return (
-      <section aria-label="Reservation Details">
-        <h1 className="page-heading">Reservation Details</h1>
-        <div role="alert">
+      <div className="page" aria-label="Reservation Details">
+        <div className="head">
+          <div>
+            <h1>Reservation Details</h1>
+          </div>
+        </div>
+        <div role="alert" className="err">
           <p>{error ?? "Reservation not found."}</p>
         </div>
-        <Link to="/notifications" className="back-link">
-          ← Back to Notifications
-        </Link>
-      </section>
+        <div>{back}</div>
+      </div>
     );
   }
 
   return (
-    <section aria-label="Reservation Details">
-      <h1 className="page-heading">Reservation Details</h1>
-      <dl className="reservation-detail-list">
+    <div className="page" aria-label="Reservation Details">
+      <div className="head">
         <div>
+          <h1>Reservation Details</h1>
+        </div>
+      </div>
+      <section className="card">
+        <dl className="kv">
           <dt>Reservation ID</dt>
           <dd>{reservation.id}</dd>
-        </div>
-        <div>
           <dt>Status</dt>
           <dd>{reservation.status}</dd>
-        </div>
-        <div>
           <dt>Spot ID</dt>
           <dd>{reservation.spotId}</dd>
-        </div>
-        <div>
           <dt>Vehicle ID</dt>
           <dd>{reservation.vehicleId}</dd>
-        </div>
-        <div>
           <dt>Start Time</dt>
-          <dd>{new Date(reservation.startTime).toLocaleString()}</dd>
-        </div>
-        <div>
+          <dd className="tabular">
+            {new Date(reservation.startTime).toLocaleString()}
+          </dd>
           <dt>End Time</dt>
-          <dd>{new Date(reservation.endTime).toLocaleString()}</dd>
-        </div>
-      </dl>
-      <Link to="/notifications" className="back-link">
-        ← Back to Notifications
-      </Link>
-    </section>
+          <dd className="tabular">
+            {new Date(reservation.endTime).toLocaleString()}
+          </dd>
+        </dl>
+      </section>
+      <div>{back}</div>
+    </div>
   );
 }

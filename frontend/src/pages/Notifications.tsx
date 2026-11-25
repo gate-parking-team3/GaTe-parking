@@ -6,19 +6,20 @@ export default function Notifications() {
   const [activeTab, setActiveTab] = useState<"list" | "settings">("list");
 
   return (
-    <section aria-label="Notifications Page">
-      <h1 className="page-heading">Notifications</h1>
-      <div
-        className="tab-controls"
-        role="tablist"
-        aria-label="Notification views"
-        style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}
-      >
+    <div className="page" aria-label="Notifications Page">
+      <div className="head">
+        <div>
+          <h1>Notifications</h1>
+          <p>Updates about your bookings and what you want to hear about.</p>
+        </div>
+      </div>
+
+      <div className="seg" role="tablist" aria-label="Notification views">
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "list"}
-          className={`tab-btn ${activeTab === "list" ? "tab-btn--active" : ""}`}
+          className={activeTab === "list" ? "on" : ""}
           onClick={() => setActiveTab("list")}
         >
           My Notifications
@@ -27,20 +28,18 @@ export default function Notifications() {
           type="button"
           role="tab"
           aria-selected={activeTab === "settings"}
-          className={`tab-btn ${activeTab === "settings" ? "tab-btn--active" : ""}`}
+          className={activeTab === "settings" ? "on" : ""}
           onClick={() => setActiveTab("settings")}
         >
           Notification Settings
         </button>
       </div>
 
-      <div className="tab-content">
-        {activeTab === "list" ? (
-          <NotificationList />
-        ) : (
-          <NotificationSettingsForm />
-        )}
-      </div>
-    </section>
+      {activeTab === "list" ? (
+        <NotificationList />
+      ) : (
+        <NotificationSettingsForm />
+      )}
+    </div>
   );
 }

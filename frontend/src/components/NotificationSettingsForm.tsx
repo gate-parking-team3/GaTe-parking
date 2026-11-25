@@ -77,9 +77,9 @@ export default function NotificationSettingsForm() {
 
   if (error && !settings) {
     return (
-      <div role="alert">
+      <div role="alert" className="err">
         <p>{error}</p>
-        <button type="button" onClick={handleRetry}>
+        <button type="button" className="btn btn-sm" onClick={handleRetry}>
           Try again
         </button>
       </div>
@@ -87,36 +87,46 @@ export default function NotificationSettingsForm() {
   }
 
   if (settings === null) {
-    return <p>Loading notification settings…</p>;
+    return <p className="muted">Loading notification settings…</p>;
   }
 
   const currentSettings = settings ?? DEFAULT_NOTIFICATION_SETTINGS;
 
   return (
     <section aria-label="Notification Preferences">
-      <h2>Notification Preferences</h2>
-      <p>Configure which automated notifications you would like to receive.</p>
+      <h2 className="section-title">Notification Preferences</h2>
+      <p className="hint">
+        Configure which automated notifications you would like to receive.
+      </p>
 
-      {error && <p role="alert">{error}</p>}
-      {feedback && <p role="status">{feedback}</p>}
+      {error && (
+        <div role="alert" className="err">
+          {error}
+        </div>
+      )}
+      {feedback && (
+        <div role="status" className="ok-note">
+          {feedback}
+        </div>
+      )}
 
-      <form onSubmit={(e) => e.preventDefault()}>
+      <form className="card" onSubmit={(e) => e.preventDefault()}>
         {NOTIFICATION_TYPES.map((type) => {
           const isEnabled = currentSettings[type];
           const isSaving = savingType === type;
           return (
-            <div key={type} className="notification-setting-item">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isEnabled}
-                  disabled={isSaving}
-                  onChange={(e) => handleToggle(type, e.target.checked)}
-                />
-                {" " + NOTIFICATION_TYPE_LABELS[type]}
-              </label>
-              {isSaving && <span> Saving…</span>}
-            </div>
+            <label key={type} className="switch">
+              <span>
+                {NOTIFICATION_TYPE_LABELS[type]}
+                {isSaving && <span className="hint"> Saving…</span>}
+              </span>
+              <input
+                type="checkbox"
+                checked={isEnabled}
+                disabled={isSaving}
+                onChange={(e) => handleToggle(type, e.target.checked)}
+              />
+            </label>
           );
         })}
       </form>
