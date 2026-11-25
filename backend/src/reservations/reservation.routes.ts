@@ -49,7 +49,38 @@ export function createLotRouter(deps: Partial<Deps> = {}): Router {
   router.get(
     "/",
     handle(async (_req, res) => {
-      res.json(await store.listLots());
+      const at = now();
+      const lots = await store.listLots();
+      res.json(
+        await Promise.all(
+          lots.map(async (lot) => {
+            const availability = await lotAvailability(store, lot.id, at);
+            return { ...lot, availability: availability.counts };
+          }),
+        ),
+      );
+    }),
+  );
+
+  router.get(
+    "/:lotId",
+    handle(async (req, res) => {
+      const lotId = readId(req.params.lotId);
+      if (!lotId) {
+        res.status(400).json({ error: "Invalid parking lot id" });
+        return;
+      }
+      const lot = await store.findLot(lotId);
+      if (!lot) {
+        res.status(404).json({ error: "Parking lot not found" });
+        return;
+      }
+      const availability = await lotAvailability(store, lotId, now());
+      res.json({
+        ...lot,
+        availability: availability.counts,
+        spots: availability.spots,
+      });
     }),
   );
 
@@ -109,6 +140,46 @@ export function createLotRouter(deps: Partial<Deps> = {}): Router {
   );
 
   return router;
+}
+
+async function lotAvailability(
+  store: ReservationStore,
+  lotId: string,
+  at: Date,
+) {
+  const window = { start: at, end: new Date(at.getTime() + 1) };
+  const spots = await store.listSpots(lotId);
+  const [busy, occupied] = await Promise.all([
+    store.findBusySpotIds(lotId, window, at),
+    store.findOccupiedSpotIds(
+      spots.map((spot) => spot.id),
+      at,
+    ),
+  ]);
+  const currentSpots = spots.map((spot) => ({
+    ...spot,
+    status:
+      spot.status === "occupied" || occupied.has(spot.id)
+        ? "occupied"
+        : spot.status === "reserved" || busy.has(spot.id)
+          ? "reserved"
+          : "free",
+  }));
+  const occupiedCount = currentSpots.filter(
+    (spot) => spot.status === "occupied",
+  ).length;
+  const reservedCount = currentSpots.filter(
+    (spot) => spot.status === "reserved",
+  ).length;
+  return {
+    spots: currentSpots,
+    counts: {
+      total: currentSpots.length,
+      available: currentSpots.length - occupiedCount - reservedCount,
+      occupied: occupiedCount,
+      reserved: reservedCount,
+    },
+  };
 }
 
 /** Mounted at /api/reservations. Needs requireAuth in front. */

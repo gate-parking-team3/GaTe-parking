@@ -1,7 +1,19 @@
 import cors from "cors";
 import express, { type ErrorRequestHandler } from "express";
 import mongoose from "mongoose";
+import {
+  createAdminSpotRouter,
+  createAuditLogRouter,
+} from "./admin/admin-spot.routes.js";
 import { employeesRouter } from "./admin/employees.routes.js";
+import {
+  mongoAdminSpotStore,
+  mongoParkingLotLookup,
+  type AdminSpotStore,
+  type ParkingLotLookup,
+} from "./admin/spot.store.js";
+import { mongoAuditLogStore } from "./audit/audit.store.js";
+import type { AuditLogStore } from "./audit/audit.types.js";
 import { authRouter } from "./auth/auth.routes.js";
 import { createNotificationRouter } from "./notifications/notification.routes.js";
 import { requireAuth, requireRole } from "./auth/middleware.js";
@@ -31,6 +43,10 @@ type AppOptions = {
   users?: UserStore;
   jwtSecret?: string;
   rateLimits?: RateLimits;
+  spots?: AdminSpotStore;
+  auditLogs?: AuditLogStore;
+  lots?: ParkingLotLookup;
+  now?: () => Date;
 };
 
 export function createApp({
@@ -38,6 +54,10 @@ export function createApp({
   users = mongoUserStore,
   jwtSecret = process.env.JWT_SECRET ?? "",
   rateLimits = DEFAULT_RATE_LIMITS,
+  spots = mongoAdminSpotStore,
+  auditLogs = mongoAuditLogStore,
+  lots = mongoParkingLotLookup,
+  now = () => new Date(),
 }: AppOptions = {}) {
   const app = express();
   // Behind a hosting proxy (Render) the real client IP is in X-Forwarded-For.
@@ -78,6 +98,18 @@ export function createApp({
     requireRole("admin"),
     registrationRouter(users, mailbox),
     employeesRouter(users),
+  );
+  app.use(
+    "/api/admin/spots",
+    requireAuth(users, jwtSecret),
+    requireRole("admin"),
+    createAdminSpotRouter({ spots, auditLogs, lots, now }),
+  );
+  app.use(
+    "/api/admin/audit-logs",
+    requireAuth(users, jwtSecret),
+    requireRole("admin"),
+    createAuditLogRouter({ auditLogs, users }),
   );
   if (process.env.NODE_ENV !== "production") {
     app.use(
