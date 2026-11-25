@@ -70,6 +70,7 @@ export interface ReservationStore {
   listLots(): Promise<ParkingLotRecord[]>;
   findLot(id: string): Promise<ParkingLotRecord | null>;
   listSpots(lotId: string): Promise<ParkingSpotRecord[]>;
+  findOccupiedSpotIds(spotIds: string[], now: Date): Promise<Set<string>>;
   findSpot(id: string): Promise<ParkingSpotRecord | null>;
   /** The spots for these ids. Unknown ids are left out. */
   findSpotsByIds(ids: string[]): Promise<ParkingSpotRecord[]>;
@@ -174,6 +175,19 @@ export const mongoReservationStore: ReservationStore = {
       .sort({ spotNumber: 1 })
       .lean();
     return docs.map(toSpot);
+  },
+
+  async findOccupiedSpotIds(spotIds, now) {
+    const valid = [...new Set(spotIds)].filter((id) =>
+      mongoose.isValidObjectId(id),
+    );
+    if (valid.length === 0) return new Set();
+    const occupied = await ParkingSessionModel.distinct("spotId", {
+      spotId: { $in: valid },
+      entryTime: { $lte: now },
+      exitTime: OPEN,
+    });
+    return new Set(occupied.map(String));
   },
 
   async findSpot(id) {
