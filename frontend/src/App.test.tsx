@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authApi } from "./api/authApi";
 import { notificationApi } from "./api/notificationApi";
+import { reservationApi } from "./api/reservationApi";
 import { lotApi } from "./api/lotApi";
 import { vehicleApi } from "./api/vehicleApi";
 import App from "./App";
@@ -169,6 +170,8 @@ describe("Authenticated user experience", () => {
       deleted: true,
       spot_unavailable: true,
     });
+    vi.spyOn(reservationApi, "current").mockResolvedValue([]);
+    vi.spyOn(reservationApi, "lots").mockResolvedValue([]);
     vi.spyOn(lotApi, "list").mockResolvedValue([]);
   });
 
@@ -307,7 +310,7 @@ describe("Authenticated user experience", () => {
     expect(
       await screen.findByRole("heading", {
         level: 1,
-        name: "My Reservations",
+        name: "My bookings",
       }),
     ).toBeInTheDocument();
   });
@@ -406,6 +409,8 @@ describe("Full login and redirect integration", () => {
       user: mockUser,
     });
     vi.spyOn(authApi, "me").mockResolvedValue({ user: mockUser });
+    vi.spyOn(reservationApi, "current").mockResolvedValue([]);
+    vi.spyOn(reservationApi, "lots").mockResolvedValue([]);
 
     // Anonymous user attempts to visit /reservations directly
     renderApp("/reservations");
@@ -424,7 +429,7 @@ describe("Full login and redirect integration", () => {
     expect(
       await screen.findByRole("heading", {
         level: 1,
-        name: "My Reservations",
+        name: "My bookings",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("Petr Svoboda")).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import type { VehicleSize } from "./vehicle";
+import type { Vehicle, VehicleSize } from "./vehicle";
 
 export type ReservationStatus =
   "reserved" | "active" | "completed" | "cancelled";
@@ -43,9 +43,20 @@ export interface ParkingLot {
   disabledCapacity: number;
 }
 
+// An upcoming or in-progress reservation from GET /api/reservations/active (US 7).
+// The vehicle or spot is null when it can no longer be loaded.
+export interface CurrentReservation {
+  id: string;
+  status: ReservationStatus;
+  startTime: string;
+  endTime: string;
+  vehicle: Omit<Vehicle, "userId"> | null;
+  parkingSpot: Omit<ParkingSpot, "status"> | null;
+}
+
 // Only a reserved booking whose start is still ahead can be edited (US 11).
 export function isEditableReservation(
-  reservation: Reservation,
+  reservation: Pick<Reservation, "status" | "startTime">,
   now: Date = new Date(),
 ): boolean {
   return (

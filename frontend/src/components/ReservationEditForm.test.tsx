@@ -3,19 +3,29 @@ import userEvent from "@testing-library/user-event";
 import { ApiError } from "../api/client";
 import { reservationApi } from "../api/reservationApi";
 import { vehicleApi } from "../api/vehicleApi";
-import type { ParkingSpot, Reservation } from "../types/reservation";
+import type {
+  ParkingLot,
+  ParkingSpot,
+  Reservation,
+} from "../types/reservation";
 import type { Vehicle } from "../types/vehicle";
-import ReservationEditForm, { toLocalInput } from "./ReservationEditForm";
+import ReservationEditForm, {
+  type EditableReservation,
+} from "./ReservationEditForm";
 
-const reservation: Reservation = {
+// Local times, so the date and time inputs show 10 Jan 2099, 09:00–11:00.
+const startTime = new Date("2099-01-10T09:00").toISOString();
+const endTime = new Date("2099-01-10T11:00").toISOString();
+
+const reservation: EditableReservation = {
   id: "res-1",
-  userId: "user-1",
+  status: "reserved",
+  startTime,
+  endTime,
   vehicleId: "car-1",
   spotId: "spot-1",
   lotId: "lot-1",
-  status: "reserved",
-  startTime: "2099-01-10T09:00:00.000Z",
-  endTime: "2099-01-10T11:00:00.000Z",
+  spotNumber: "A1",
 };
 
 const vehicles: Vehicle[] = [
@@ -39,16 +49,41 @@ const vehicles: Vehicle[] = [
   },
 ];
 
+const lots: ParkingLot[] = [
+  {
+    id: "lot-1",
+    name: "Main lot",
+    address: "Main street 1",
+    totalCapacity: 12,
+    evCapacity: 2,
+    disabledCapacity: 1,
+  },
+  {
+    id: "lot-2",
+    name: "North lot",
+    address: "North street 2",
+    totalCapacity: 4,
+    evCapacity: 1,
+    disabledCapacity: 0,
+  },
+];
+
 const spot2: ParkingSpot = {
   id: "spot-2",
   spotNumber: "A2",
   lotId: "lot-1",
-  type: "standard",
+  type: "ev",
   size: "large",
   status: "free",
 };
 
-function renderForm(overrides: Partial<Reservation> = {}) {
+const saved: Reservation = {
+  ...reservation,
+  userId: "user-1",
+  spotId: "spot-2",
+};
+
+function renderForm(overrides: Partial<EditableReservation> = {}) {
   const onSaved = vi.fn();
   const onCancel = vi.fn();
   render(
@@ -63,13 +98,14 @@ function renderForm(overrides: Partial<Reservation> = {}) {
 
 async function waitForSpots() {
   expect(
-    await screen.findByRole("option", { name: "Spot A2 (Standard, large)" }),
+    await screen.findByRole("option", { name: "A2 (EV)" }),
   ).toBeInTheDocument();
 }
 
 describe("ReservationEditForm", () => {
   beforeEach(() => {
     vi.spyOn(vehicleApi, "list").mockResolvedValue(vehicles);
+    vi.spyOn(reservationApi, "lots").mockResolvedValue(lots);
     vi.spyOn(reservationApi, "availableSpots").mockResolvedValue([spot2]);
   });
 
@@ -77,47 +113,57 @@ describe("ReservationEditForm", () => {
     vi.restoreAllMocks();
   });
 
-  it("is prefilled with the reservation's current data", async () => {
+  it("opens as a dialog prefilled with the booking", async () => {
     renderForm();
     await waitForSpots();
 
+    expect(
+      screen.getByRole("dialog", { name: "Change booking" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle")).toHaveValue("car-1");
-    expect(screen.getByLabelText("Start")).toHaveValue(
-      toLocalInput(reservation.startTime),
-    );
-    expect(screen.getByLabelText("End")).toHaveValue(
-      toLocalInput(reservation.endTime),
-    );
+    expect(screen.getByLabelText("Date")).toHaveValue("2099-01-10");
+    expect(screen.getByLabelText("From")).toHaveValue("09:00");
+    expect(screen.getByLabelText("To")).toHaveValue("11:00");
+    expect(screen.getByLabelText("Lot")).toHaveValue("lot-1");
     expect(screen.getByLabelText("Spot")).toHaveValue("spot-1");
     expect(
-      screen.getByRole("option", { name: "Current spot" }),
+      screen.getByRole("option", { name: "A1 (now)" }),
     ).toBeInTheDocument();
   });
 
-  it("asks for free spots for the chosen vehicle and time", async () => {
+  it("asks for free spots for the chosen vehicle, lot and time", async () => {
+    const user = userEvent.setup();
     renderForm();
     await waitForSpots();
 
     expect(reservationApi.availableSpots).toHaveBeenCalledWith("lot-1", {
       vehicleId: "car-1",
-      start: reservation.startTime,
-      end: reservation.endTime,
+      start: startTime,
+      end: endTime,
     });
 
-    await userEvent.selectOptions(screen.getByLabelText("Vehicle"), "car-2");
+    await user.selectOptions(screen.getByLabelText("Vehicle"), "car-2");
+    await user.selectOptions(screen.getByLabelText("Lot"), "lot-2");
 
-    expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-1", {
+    expect(reservationApi.availableSpots).toHaveBeenLastCalledWith("lot-2", {
       vehicleId: "car-2",
-      start: reservation.startTime,
-      end: reservation.endTime,
+      start: startTime,
+      end: endTime,
     });
   });
 
+  it("hides the vehicle choice when the user has one vehicle", async () => {
+    vi.spyOn(vehicleApi, "list").mockResolvedValue(vehicles.slice(0, 1));
+    renderForm();
+    await waitForSpots();
+
+    expect(screen.queryByLabelText("Vehicle")).not.toBeInTheDocument();
+  });
+
   it("saves only the changed spot", async () => {
-    const saved = { ...reservation, spotId: "spot-2" };
     const update = vi.spyOn(reservationApi, "update").mockResolvedValue(saved);
-    const { onSaved } = renderForm();
     const user = userEvent.setup();
+    const { onSaved } = renderForm();
     await waitForSpots();
 
     await user.selectOptions(screen.getByLabelText("Spot"), "spot-2");
@@ -127,22 +173,38 @@ describe("ReservationEditForm", () => {
     expect(onSaved).toHaveBeenCalledWith(saved);
   });
 
-  it("saves a new time window", async () => {
-    const update = vi
-      .spyOn(reservationApi, "update")
-      .mockResolvedValue(reservation);
+  it("saves a new end time", async () => {
+    const update = vi.spyOn(reservationApi, "update").mockResolvedValue(saved);
     renderForm();
     await waitForSpots();
 
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: toLocalInput("2099-01-10T12:00:00.000Z") },
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "12:00" },
     });
     await waitForSpots();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(update).toHaveBeenCalledWith("res-1", {
-      endTime: "2099-01-10T12:00:00.000Z",
+      endTime: new Date("2099-01-10T12:00").toISOString(),
     });
+  });
+
+  it("picks a spot in the new lot when the lot changes", async () => {
+    vi.spyOn(reservationApi, "availableSpots").mockResolvedValue([
+      { ...spot2, id: "spot-9", spotNumber: "N1", lotId: "lot-2" },
+    ]);
+    const update = vi.spyOn(reservationApi, "update").mockResolvedValue(saved);
+    const user = userEvent.setup();
+    renderForm();
+    await screen.findByRole("option", { name: "N1 (EV)" });
+
+    await user.selectOptions(screen.getByLabelText("Lot"), "lot-2");
+    expect(
+      screen.queryByRole("option", { name: "A1 (now)" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).toHaveBeenCalledWith("res-1", { spotId: "spot-9" });
   });
 
   it("does not save when the end is before the start", async () => {
@@ -150,8 +212,8 @@ describe("ReservationEditForm", () => {
     renderForm();
     await waitForSpots();
 
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: toLocalInput("2099-01-10T08:00:00.000Z") },
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "08:00" },
     });
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -178,8 +240,8 @@ describe("ReservationEditForm", () => {
     vi.spyOn(reservationApi, "update").mockRejectedValue(
       new ApiError("The spot is already booked for that time", 409),
     );
-    const { onSaved } = renderForm();
     const user = userEvent.setup();
+    const { onSaved } = renderForm();
     await waitForSpots();
 
     await user.selectOptions(screen.getByLabelText("Spot"), "spot-2");
@@ -201,24 +263,25 @@ describe("ReservationEditForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Lot not found");
   });
 
-  it("explains that a started reservation cannot be edited", async () => {
+  it("explains that a started booking cannot be changed", async () => {
     const { onCancel } = renderForm({ status: "active" });
 
     expect(
-      screen.getByText(/Only upcoming reservations can be edited/),
+      screen.getByText("Only bookings that haven't started can be changed."),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Start")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Date")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    await userEvent.click(screen.getByRole("button", { name: "OK" }));
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it("calls onCancel when cancelled", async () => {
+  it("closes with Cancel and with Escape", async () => {
     const { onCancel } = renderForm();
     await waitForSpots();
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
 
-    expect(onCancel).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalledTimes(2);
   });
 });
