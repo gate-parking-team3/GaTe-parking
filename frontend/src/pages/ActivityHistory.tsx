@@ -38,55 +38,72 @@ export default function ActivityHistory() {
 
   if (error) {
     return (
-      <section aria-label="Activity History">
-        <h1 className="page-heading">Activity History</h1>
-        <div role="alert">
+      <div className="page" aria-label="Activity History">
+        <div className="head">
+          <div>
+            <h1>Activity History</h1>
+          </div>
+        </div>
+        <div role="alert" className="err">
           <p>{error}</p>
-          <button type="button" onClick={handleRetry}>
+          <button type="button" className="btn btn-sm" onClick={handleRetry}>
             Try again
           </button>
         </div>
-      </section>
+      </div>
     );
   }
 
   if (logs === null) {
-    return <p>Loading activity history…</p>;
+    return (
+      <div className="page">
+        <p className="muted">Loading activity history…</p>
+      </div>
+    );
   }
 
   return (
-    <section aria-label="Activity History">
-      <h1 className="page-heading">Activity History</h1>
-      <p className="page-description">
-        Audit log of administrative and system actions across all users.
-      </p>
+    <div className="page" aria-label="Activity History">
+      <div className="head">
+        <div>
+          <h1>Activity History</h1>
+          <p>
+            Audit log of administrative and system actions across all users.
+          </p>
+        </div>
+      </div>
 
       {logs.length === 0 ? (
-        <p>No activity logs recorded yet.</p>
+        <section className="card">
+          <div className="empty">
+            <p>No activity logs recorded yet.</p>
+          </div>
+        </section>
       ) : (
-        <table className="audit-log-table">
-          <thead>
-            <tr>
-              <th>Date / Time</th>
-              <th>User</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
-                <td>{new Date(log.createdAt).toLocaleString()}</td>
-                <td>
-                  <strong>{log.user.name}</strong>
-                  <br />
-                  <small>{log.user.email}</small>
-                </td>
-                <td>{log.action}</td>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Date / Time</th>
+                <th>User</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr key={log.id} className="tabular">
+                  <td>{new Date(log.createdAt).toLocaleString()}</td>
+                  <td>
+                    <strong>{log.user.name}</strong>
+                    <span className="sub">{log.user.email}</span>
+                  </td>
+                  <td>{log.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </section>
+    </div>
   );
 }

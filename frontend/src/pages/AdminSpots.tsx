@@ -107,28 +107,45 @@ export default function AdminSpots() {
   }
 
   if (isLoadingLots) {
-    return <p>Loading parking lots…</p>;
+    return (
+      <div className="page">
+        <p className="muted">Loading parking lots…</p>
+      </div>
+    );
   }
 
   return (
-    <section aria-label="Create Parking Spot">
-      <h1 className="page-heading">Create Parking Spot</h1>
-      <p className="page-description">
-        Add a new physical parking spot to a parking lot. This action is
-        recorded in the Audit Log.
-      </p>
+    <div className="page" aria-label="Create Parking Spot">
+      <div className="head">
+        <div>
+          <h1>Create Parking Spot</h1>
+          <p>
+            Add a new physical parking spot to a parking lot. This action is
+            recorded in the Audit Log.
+          </p>
+        </div>
+      </div>
 
-      {error && <p role="alert">{error}</p>}
-      {success && <p role="status">{success}</p>}
+      {error && (
+        <div role="alert" className="err">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div role="status" className="ok-note">
+          {success}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="admin-spot-form">
-        <label>
-          Parking lot
+      <form onSubmit={handleSubmit} className="form card">
+        <div className="field">
+          <label htmlFor="spot-lot">Parking lot</label>
           <select
+            id="spot-lot"
+            className="select"
             value={selectedLotId}
             onChange={(e) => setSelectedLotId(e.target.value)}
             required
-            aria-label="Parking lot"
           >
             {lots?.map((lot) => (
               <option key={lot.id} value={lot.id}>
@@ -136,92 +153,104 @@ export default function AdminSpots() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
 
-        <label>
-          Spot number
+        <div className="field">
+          <label htmlFor="spot-number">Spot number</label>
           <input
+            id="spot-number"
+            className="input"
             type="text"
             value={spotNumber}
             onChange={(e) => setSpotNumber(e.target.value)}
             placeholder="e.g. A-101"
             required
-            aria-label="Spot number"
           />
-        </label>
+          <span className="hint">Letters, digits and hyphens only.</span>
+        </div>
 
-        <label>
-          Spot type
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as ParkingSpotType)}
-            aria-label="Spot type"
-          >
-            <option value="standard">Standard</option>
-            <option value="disabled">Disabled</option>
-            <option value="ev">EV</option>
-          </select>
-        </label>
+        <div className="row">
+          <div className="field">
+            <label htmlFor="spot-type">Spot type</label>
+            <select
+              id="spot-type"
+              className="select"
+              value={type}
+              onChange={(e) => setType(e.target.value as ParkingSpotType)}
+            >
+              <option value="standard">Standard</option>
+              <option value="disabled">Disabled</option>
+              <option value="ev">EV</option>
+            </select>
+          </div>
 
-        <label>
-          Size
-          <select
-            value={size}
-            onChange={(e) => setSize(e.target.value as ParkingSpotSize)}
-            aria-label="Size"
-          >
-            <option value="small">Small</option>
-            <option value="standard">Standard</option>
-            <option value="large">Large</option>
-          </select>
-        </label>
+          <div className="field">
+            <label htmlFor="spot-size">Size</label>
+            <select
+              id="spot-size"
+              className="select"
+              value={size}
+              onChange={(e) => setSize(e.target.value as ParkingSpotSize)}
+            >
+              <option value="small">Small</option>
+              <option value="standard">Standard</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
 
-        <label>
-          Initial availability
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as ParkingSpotStatus)}
-            aria-label="Initial availability"
-          >
-            <option value="free">Free</option>
-            <option value="reserved">Reserved</option>
-            <option value="occupied">Occupied</option>
-          </select>
-        </label>
+          <div className="field">
+            <label htmlFor="spot-status">Initial availability</label>
+            <select
+              id="spot-status"
+              className="select"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as ParkingSpotStatus)}
+            >
+              <option value="free">Free</option>
+              <option value="reserved">Reserved</option>
+              <option value="occupied">Occupied</option>
+            </select>
+          </div>
+        </div>
 
-        <button type="submit" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="btn btn-primary btn-lg btn-block"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? "Creating…" : "Create Spot"}
         </button>
       </form>
 
       {spots && spots.length > 0 && (
-        <section
-          aria-label="Existing Spots in Selected Lot"
-          style={{ marginTop: "2rem" }}
-        >
-          <h2>Existing Spots in Selected Lot ({spots.length})</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Spot number</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {spots.map((spot) => (
-                <tr key={spot.id}>
-                  <td>{spot.spotNumber}</td>
-                  <td>{spot.type.toUpperCase()}</td>
-                  <td>{spot.size}</td>
-                  <td>{spot.status}</td>
+        <section aria-label="Existing Spots in Selected Lot">
+          <h2 className="section-title">
+            Existing Spots in Selected Lot ({spots.length})
+          </h2>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Spot number</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {spots.map((spot) => (
+                  <tr key={spot.id}>
+                    <td>{spot.spotNumber}</td>
+                    <td>{spot.type === "ev" ? "EV" : spot.type}</td>
+                    <td>{spot.size}</td>
+                    <td>{spot.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
-    </section>
+    </div>
   );
 }
