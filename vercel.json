@@ -9,7 +9,19 @@
     },
     "frontend": {
       "root": "frontend",
-      "framework": "vite"
+      "framework": "vite",
+      "routes": [
+        {
+          "src": "/((?!assets/)[^.]*)",
+          "transforms": [
+            {
+              "type": "request.path",
+              "op": "set",
+              "args": "/index.html"
+            }
+          ]
+        }
+      ]
     }
   },
   "rewrites": [
@@ -17,13 +29,6 @@
       "source": "/api/(.*)",
       "destination": {
         "service": "backend"
-      }
-    },
-    {
-      "source": "/((?!assets/)[^.]*)",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
       }
     },
     {
