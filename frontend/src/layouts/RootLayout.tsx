@@ -11,7 +11,11 @@ export default function RootLayout() {
     { to: "/vehicles", label: "Vehicles" },
     { to: "/history", label: "History" },
     ...(user?.role === "admin"
-      ? [{ to: "/admin/employees", label: "Employees" }]
+      ? [
+          { to: "/admin/employees", label: "Employees" },
+          { to: "/admin/spots", label: "Spots" },
+          { to: "/admin/activity-history", label: "Activity History" },
+        ]
       : []),
   ];
 

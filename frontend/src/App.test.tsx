@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authApi } from "./api/authApi";
 import { reservationApi } from "./api/reservationApi";
+import { lotApi } from "./api/lotApi";
 import { vehicleApi } from "./api/vehicleApi";
 import App from "./App";
 import type { User } from "./types/auth";
@@ -86,6 +87,20 @@ describe("Anonymous user experience", () => {
     ).toBeInTheDocument();
   });
 
+  it("redirects anonymous visitor from /admin/spots to /login", async () => {
+    renderApp("/admin/spots");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirects anonymous visitor from /admin/activity-history to /login", async () => {
+    renderApp("/admin/activity-history");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sign In" }),
+    ).toBeInTheDocument();
+  });
+
   it("allows anonymous visitor to open /activate without redirecting to /login", () => {
     renderApp("/activate");
     expect(
@@ -141,6 +156,7 @@ describe("Authenticated user experience", () => {
     vi.spyOn(vehicleApi, "list").mockResolvedValue([]);
     vi.spyOn(reservationApi, "current").mockResolvedValue([]);
     vi.spyOn(reservationApi, "lots").mockResolvedValue([]);
+    vi.spyOn(lotApi, "list").mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -180,6 +196,12 @@ describe("Authenticated user experience", () => {
     );
     expect(
       within(nav).queryByRole("link", { name: "Employees" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(nav).queryByRole("link", { name: "Spots" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(nav).queryByRole("link", { name: "Activity History" }),
     ).not.toBeInTheDocument();
   });
 
@@ -223,11 +245,31 @@ describe("Authenticated user experience", () => {
     expect(
       within(nav).getByRole("link", { name: "Employees" }),
     ).toHaveAttribute("href", "/admin/employees");
+    expect(within(nav).getByRole("link", { name: "Spots" })).toHaveAttribute(
+      "href",
+      "/admin/spots",
+    );
+    expect(
+      within(nav).getByRole("link", { name: "Activity History" }),
+    ).toHaveAttribute("href", "/admin/activity-history");
     expect(
       await screen.findByRole("heading", {
         level: 1,
         name: "Employee Management",
       }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Access Denied when regular user visits /admin/spots or /admin/activity-history", async () => {
+    const { unmount } = renderApp("/admin/spots");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access Denied" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    renderApp("/admin/activity-history");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access Denied" }),
     ).toBeInTheDocument();
   });
 

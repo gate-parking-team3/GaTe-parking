@@ -51,6 +51,19 @@ export function memoryReservationStore(seed: Seed = {}): ReservationStore {
     async listSpots(lotId) {
       return spots.filter((spot) => spot.lotId === lotId);
     },
+    async findOccupiedSpotIds(spotIds, now) {
+      const wanted = new Set(spotIds);
+      return new Set(
+        sessions
+          .filter(
+            (session) =>
+              wanted.has(session.spotId) &&
+              session.exitTime === null &&
+              session.entryTime <= now,
+          )
+          .map((session) => session.spotId),
+      );
+    },
     async findSpot(id) {
       return spots.find((spot) => spot.id === id) ?? null;
     },
