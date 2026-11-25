@@ -29,12 +29,12 @@ function pad(value: number): string {
 }
 
 /** Local date as the value of an <input type="date">. */
-function toDateInput(date: Date): string {
+export function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /** Combine the date and time inputs into one moment, or null if either is empty. */
-function toMoment(date: string, time: string): Date | null {
+export function toMoment(date: string, time: string): Date | null {
   if (!date || !time) return null;
   const moment = new Date(`${date}T${time}`);
   return Number.isNaN(moment.getTime()) ? null : moment;
