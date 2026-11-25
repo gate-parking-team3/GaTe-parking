@@ -5,7 +5,7 @@
       "root": "backend",
       "framework": "express",
       "buildCommand": "npm run build:vercel",
-      "entrypoint": "dist/index.mjs"
+      "entrypoint": "index.mjs"
     },
     "frontend": {
       "root": "frontend",
